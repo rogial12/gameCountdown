@@ -89,4 +89,32 @@ data/model/
 
 ---
 
-*Próximo passo: criar a interface `GameRepository` e o `MockGameRepository` com dados falsos (`data/repository/`).*
+---
+
+## Passo 3 — Repository: interface e mock (Fase 2)
+
+**O que foi feito:** Criação da interface `GameRepository` e da sua implementação falsa `MockGameRepository`, com 6 jogos fictícios cobrindo os diferentes estados que o app precisa exibir.
+
+**Por quê desta forma:**
+
+- `GameRepository` é uma **interface** — define o contrato (o que pode ser feito), sem dizer como. O Service só vai conhecer a interface, nunca a implementação concreta. Isso é o que permite trocar o Mock pelo backend real na Fase 3 sem tocar no Service.
+- `MockGameRepository` implementa essa interface com dados fixos em memória. Os jogos cobrem intencionalmente cenários variados: lançamento iminente (dias), lançamento distante (meses/ano), jogo sem preço anunciado, jogo sem trailer, jogo só para uma plataforma, jogo multi-plataforma.
+- `watchedIds` é um `mutableSetOf` separado da lista de jogos — a lista pessoal do usuário é uma informação de estado do usuário, não uma propriedade do jogo em si. O método `.copy(isWatched = ...)` mescla os dois no momento da leitura, simulando o que um banco de dados faria.
+- `getGameById` retorna `Game?` (com interrogação) porque o jogo pode não existir — chamar com um ID inválido retorna `null` em vez de quebrar o app.
+- Os testes verificam os contratos comportamentais do mock: filtragem case-insensitive, toggle de watched, retorno de null para ID inexistente. Não há testes para o modelo (`Game.kt`) porque `data class` sem lógica não tem comportamento a testar.
+
+### Arquivos criados
+
+```
+data/repository/
+├── GameRepository.kt              ← interface (contrato)
+└── mock/
+    └── MockGameRepository.kt      ← implementação com 6 jogos fictícios
+
+src/test/data/repository/
+└── MockGameRepositoryTest.kt      ← 9 testes dos contratos comportamentais
+```
+
+---
+
+*Próximo passo: criar `GameService` (interface) e `GameServiceImpl` com a lógica de filtros, ordenação e countdown (`data/service/`).*
