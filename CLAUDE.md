@@ -16,6 +16,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Fase 1 (conceitual) está concluída. Nenhuma linha de código de produto foi escrita ainda.
 
+## Regras de código
+
+- **Comentários em todo o código, em português, linha a linha.** Todo arquivo Kotlin deve ter comentários explicando o que cada linha faz — inclusive `package`, `import`, campos de data class, métodos de interface e lógica interna. Essa regra existe porque Igor não lê Kotlin com fluência e usa os comentários como principal forma de acompanhar o código.
+
 ## Como trabalhar com Igor (obrigatório ler)
 
 - **Segmente por camada, não por feature inteira.** Crie só o modelo → depois só o repositório → depois só a lógica → depois só a UI. Não entregue uma feature inteira de uma vez, mesmo que o pedido seja amplo — quebre e confirme antes de seguir.
