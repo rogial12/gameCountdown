@@ -65,4 +65,28 @@ graph TD
 
 ---
 
-*Próximo passo: definir o modelo de dados (`data/model/Game.kt` e tipos relacionados).*
+## Passo 2 — Modelo de dados (Fase 2)
+
+**O que foi feito:** Criação dos três arquivos que definem como um jogo é representado na memória do app: `Game.kt`, `Platform.kt` e `Genre.kt`, dentro de `data/model/`.
+
+**Por quê desta forma:**
+
+- `Game` é uma `data class` — tipo especial do Kotlin para objetos que só carregam dados, sem comportamento. O compilador gera automaticamente comparação entre objetos, cópia e conversão para texto.
+- Campos marcados com `?` (ex.: `priceUsd: Double?`) são **opcionais** — podem ser `null`. Isso reflete a realidade: nem todo jogo tem preço anunciado, nem todo jogo tem trailer ainda.
+- `releaseDate` e `preSaleDate` são `String` no formato `"2025-03-15"` — simplificação consciente para o protótipo. Datas como objetos (`LocalDate`) exigiriam configuração extra no build. Revisaremos quando o countdown real precisar de aritmética de datas.
+- `Platform` e `Genre` são `enum class` com um campo `displayName` em português — assim a UI pode exibir o nome amigável ("PlayStation 5") sem precisar fazer conversão manual em cada tela.
+- `anticipationScore` e `isWatched` vivem no modelo por simplicidade no protótipo. Em fases futuras, `isWatched` tende a migrar para uma camada de preferências do usuário separada (Room/DataStore), quando o sync entre dispositivos for implementado.
+- Não há testes nesta camada — `data class` sem lógica não tem comportamento a testar. Os testes começam no `Service`, onde existem regras de negócio reais.
+
+### Arquivos criados
+
+```
+data/model/
+├── Game.kt        ← objeto principal: campos de um jogo
+├── Platform.kt    ← enum: PS5, Xbox Series, PC, Switch, Mobile
+└── Genre.kt       ← enum: Ação, RPG, Aventura, Estratégia, Esportes, Simulação, Terror, Luta
+```
+
+---
+
+*Próximo passo: criar a interface `GameRepository` e o `MockGameRepository` com dados falsos (`data/repository/`).*
