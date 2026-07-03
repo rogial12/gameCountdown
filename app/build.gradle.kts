@@ -31,6 +31,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // habilita o "desugaring" da biblioteca core: permite usar java.time (LocalDate, ChronoUnit)
+        // mesmo no minSdk 24, onde essas classes não existem nativamente (só a partir da API 26)
+        isCoreLibraryDesugaringEnabled = true
     }
     buildFeatures {
         compose = true
@@ -53,4 +56,6 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    // biblioteca que viabiliza o desugaring habilitado acima (java.time no minSdk 24)
+    coreLibraryDesugaring(libs.android.desugar.jdk.libs)
 }
