@@ -2,6 +2,7 @@ package com.almenara.gamecountdown.ui.catalogo // pacote da feature de catálogo
 
 import androidx.compose.foundation.horizontalScroll // permite rolar a linha de botões na horizontal quando não cabem
 import androidx.compose.foundation.layout.Arrangement // define o espaçamento entre os botões da barra
+import androidx.compose.foundation.layout.Box // caixa-âncora que envolve botão + menu, para o DropdownMenu ancorar no botão
 import androidx.compose.foundation.layout.Row // organiza os botões de filtro/ordenação lado a lado
 import androidx.compose.foundation.layout.padding // aplica espaçamento ao redor da barra
 import androidx.compose.foundation.rememberScrollState // guarda a posição de rolagem horizontal entre recomposições
