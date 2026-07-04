@@ -772,3 +772,32 @@ ui/catalogo/CatalogoScreen.kt  ← ALTERADO: botão de alternar lista↔grade; C
 ---
 
 *Próximo passo: Calendário 3c — integrar o toggle lista↔grade na Lista Pessoal (reusando o componente `Calendario`, alimentado só com os jogos observados) e aplicar eventuais ajustes visuais decididos com Igor após ver a grade no aparelho.*
+
+---
+
+## Passo 22 — Calendário 3c: grade na Lista Pessoal (Fase 2)
+
+**O que foi feito:** Integração do mesmo toggle lista↔grade na Lista Pessoal, reusando o componente `Calendario` — agora alimentado só com os jogos "de olho". Verificado no aparelho: o calendário da Lista mostra apenas os jogos observados (julho vazio; agosto com a capa do Hearthfall no dia 15). Isso **fecha todo o Passo 3 do roadmap** (3a lógica + 3b Catálogo + 3c Lista Pessoal) — o Calendário está completo.
+
+**Igor aprovou o visual da grade como está** (capa em círculo, número na pílula, moldura de hoje, setas), sem ajustes — então 3c foi só a replicação do padrão do Catálogo na Lista Pessoal.
+
+**Por quê desta forma (implementação):**
+
+- **Reúso total do componente.** A `ListaPessoalScreen` ganhou o mesmo `modoGrade` (`rememberSaveable`) e o mesmo botão no topo-direito do Catálogo; o `ListaPessoalConteudo` virou um `when` de três casos (grade / lista vazia / lista com jogos). A diferença entre as duas instâncias do Calendário é só o dado de entrada: o Catálogo passa a lista filtrada, a Lista Pessoal passa `uiState.jogos.map { it.game }` (só os observados). O componente `Calendario` é o mesmo, sem nenhuma mudança — a "separação por tela" das duas instâncias (decisão de Igor) cai naturalmente de cada tela passar sua própria lista.
+- **O bottom sheet do calendário não tem o switch de remover.** Na visão de grade, os cards do painel do dia usam o `GameCard` puro (sem o `AddToListSwitch`). A remoção continua sendo uma ação da visão de lista — a grade é modo de consulta. Isso saiu de graça, porque o `Calendario` sempre usou o `GameCard` sem `trailing`.
+- **Sem novos testes:** integração de UI, sem lógica pura nova (a do agrupamento já foi testada no Passo 20). Verificação por screenshot no aparelho.
+
+### Arquivos alterados
+
+```
+ui/lista_pessoal/ListaPessoalScreen.kt  ← ALTERADO: botão de alternar lista↔grade;
+                                           ListaPessoalConteudo com a visão de grade (só os "de olho")
+```
+
+**Marco atingido — Calendário completo.** As quatro telas do protótipo (Catálogo, Lista Pessoal, Busca, Detalhes) estão prontas, e Catálogo e Lista Pessoal têm a visão alternativa de calendário. Tudo com dados mockados, capas reais (Coil), navegação por abas + telas empilhadas, e o dado "de olho" compartilhado entre as telas. O protótipo da Fase 2 cumpre seu objetivo: validar fluxo e conceito.
+
+**Pendências conhecidas (não bloqueiam a Fase 2):** testes instrumentados de UI (Compose) seguem reservados para um passo próprio; a arte real de capas, o player de trailer embutido, "Onde comprar?" e "Notícias" dependem do backend (Fase 3+); a tela dedicada de Busca pode ganhar filtros próprios no futuro.
+
+---
+
+*Próximo passo: a definir com Igor. Com as features centrais do protótipo completas, opções naturais são: revisar/polir o protótipo inteiro de ponta a ponta, começar os testes instrumentados de Compose, ou encerrar a Fase 2 e planejar a Fase 3 (backend v0).*
