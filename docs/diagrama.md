@@ -509,3 +509,42 @@ src/test/ui/lista_pessoal/
 ---
 
 *Próximo passo: a definir com Igor — a **navegação** (que finalmente conecta as telas e torna a Lista Pessoal alcançável, provavelmente com a barra inferior Catálogo/Lista Pessoal/Calendário/Busca que Igor mencionou) ou a tela de **Detalhes**.*
+
+---
+
+## Passo 15 — Detalhes, parte 1: estado + ViewModel (Fase 2)
+
+**O que foi feito:** Início da tela de Detalhes pela camada de lógica — o `DetalhesViewModel` (+ estado `DetalhesUiState` e `DetalhesViewModelFactory`), com 5 testes. Este ViewModel carrega UM jogo específico pelo id e expõe a ação de alternar "de olho". A UI (a tela com capa, sinopse, trailer e o `AddToListSwitch`) fica para o Passo 16.
+
+**Escopo decidido com Igor (o que a tela vai/não vai ter):**
+
+- **Dentro do escopo agora:** capa (placeholder), título, sinopse, desenvolvedor, data de lançamento, data de pré-venda (se houver), plataformas, preço, countdown, controle de "de olho" e um acesso ao trailer.
+- **Fora do escopo agora:** "Onde comprar?" (links de loja/afiliados) e "Notícias relacionadas" — dependem de dados que só existem no backend (Fase 3+), não no mock.
+- **Trailer:** placeholder que abre o YouTube **externamente** (via Intent com o `trailerId`), em vez de player embutido. Sem dependência nova; o player embutido fica para a Fase 3+. Será implementado no Passo 16.
+- **"De olho" na tela de Detalhes:** sim — a tela terá o `AddToListSwitch`, e o `DetalhesViewModel` já expõe `alternarWatched()` para dar suporte a ele. Como usa o `GameService` compartilhado (via `AppContainer`), marcar aqui reflete no Catálogo e na Lista Pessoal.
+
+**Por quê desta forma (implementação):**
+
+- **O ViewModel recebe o `gameId` no construtor.** Diferente dos outros, a tela de Detalhes mostra um jogo específico, então o id é injetado pela Factory (virá da navegação — a tela de origem passa o id do card tocado). No `init`, busca o jogo por `getGameById(id)` e calcula os dias.
+- **`game` é anulável no estado.** Se o id não existir, `game` fica `null` e a tela mostrará "não encontrado" — um caso de borda tratado e testado, em vez de assumir que o jogo sempre existe.
+- **`alternarWatched()` protege contra jogo ausente.** Se não há jogo carregado, sai sem chamar o Service (coberto por teste) — evita `NullPointerException` e chamadas inúteis.
+
+**Sobre os testes (5):** carrega o jogo certo pelo id com os dias; id inexistente deixa `game` nulo; alternar marca como observado; alternar duas vezes desfaz; alternar sem jogo carregado não chama o Service. O fake conta as chamadas de `setWatched` para verificar o último caso.
+
+### Arquivos criados
+
+```
+ui/detalhes/
+├── DetalhesUiState.kt            ← NOVO: game (anulável) + dias
+├── DetalhesViewModel.kt          ← NOVO: carrega por id + alternarWatched()
+└── DetalhesViewModelFactory.kt   ← NOVO: recebe o gameId + o GameService compartilhado
+
+src/test/ui/detalhes/
+└── DetalhesViewModelTest.kt      ← NOVO: 5 testes (carga, id inexistente, toggle, toggle duplo, toggle sem jogo)
+```
+
+**Estado:** a lógica das três telas (Catálogo, Lista Pessoal, Detalhes) está pronta e testada. Falta a UI de Detalhes (Passo 16) e a navegação que conecta tudo.
+
+---
+
+*Próximo passo: Detalhes, parte 2 — a `DetalhesScreen` (capa, infos, sinopse, `AddToListSwitch` e o botão de trailer que abre o YouTube). Depois, a navegação que costura as telas.*
