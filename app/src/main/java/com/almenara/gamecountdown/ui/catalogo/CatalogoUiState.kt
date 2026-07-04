@@ -19,8 +19,6 @@ data class CatalogoUiState(
     val jogos: List<JogoCatalogo> = emptyList(),  // lista de jogos (com dias) já filtrada e ordenada, pronta pra exibir
     val filtro: FiltroCatalogo = FiltroCatalogo(), // filtro atualmente aplicado (plataforma/gênero/período)
     val ordenacao: CriterioOrdenacao = CriterioOrdenacao.MAIS_PROXIMOS, // critério de ordenação atual
-    val buscando: Boolean = false,                // true quando o campo de busca está aberto (modo busca)
-    val busca: String = "",                       // texto digitado na busca; enquanto vazio, o modo busca lista todos
     val carregando: Boolean = false,              // true enquanto os dados ainda estão sendo buscados
     val mensagemErro: String? = null              // texto de erro a exibir; null quando não há erro
 )

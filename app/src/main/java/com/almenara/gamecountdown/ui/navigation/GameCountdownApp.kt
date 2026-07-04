@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding // aplica o espaçamento que o
 import androidx.compose.material.icons.Icons // ponto de acesso aos ícones do Material
 import androidx.compose.material.icons.automirrored.filled.List // ícone (lista) da aba Catálogo (espelha em RTL)
 import androidx.compose.material.icons.filled.Favorite // ícone (coração) da aba Lista Pessoal
+import androidx.compose.material.icons.filled.Search // ícone (lupa) da aba Busca
 import androidx.compose.material3.Icon // desenha um ícone vetorial
 import androidx.compose.material3.NavigationBar // a barra de navegação inferior do Material 3
 import androidx.compose.material3.NavigationBarItem // cada item (aba) dentro da barra inferior
@@ -21,6 +22,9 @@ import androidx.navigation.compose.composable // registra uma tela (destino) no 
 import androidx.navigation.compose.currentBackStackEntryAsState // observa qual rota está ativa agora
 import androidx.navigation.compose.rememberNavController // cria o "controle remoto" da navegação
 import androidx.navigation.navArgument // declara um argumento de rota (o gameId de Detalhes)
+import com.almenara.gamecountdown.ui.busca.BuscaScreen // tela de Busca
+import com.almenara.gamecountdown.ui.busca.BuscaViewModel // ViewModel da Busca
+import com.almenara.gamecountdown.ui.busca.BuscaViewModelFactory // Factory da Busca
 import com.almenara.gamecountdown.ui.catalogo.CatalogoScreen // tela de Catálogo
 import com.almenara.gamecountdown.ui.catalogo.CatalogoViewModel // ViewModel do Catálogo
 import com.almenara.gamecountdown.ui.catalogo.CatalogoViewModelFactory // Factory do Catálogo
@@ -35,6 +39,7 @@ import com.almenara.gamecountdown.ui.lista_pessoal.ListaPessoalViewModelFactory 
 object Rotas {
     const val CATALOGO = "catalogo"              // aba Catálogo
     const val LISTA = "lista"                    // aba Lista Pessoal
+    const val BUSCA = "busca"                    // aba Busca
     const val DETALHES = "detalhes/{gameId}"     // tela de Detalhes; {gameId} é o argumento (qual jogo)
     fun detalhes(id: String) = "detalhes/$id"    // monta a rota concreta para um jogo específico
 }
@@ -42,10 +47,11 @@ object Rotas {
 // dados de uma aba da barra inferior: para qual rota leva, o rótulo e o ícone
 private data class AbaInferior(val rota: String, val rotulo: String, val icone: ImageVector)
 
-// as abas exibidas na barra inferior — só Catálogo e Lista Pessoal por ora (Calendário/Busca entram no futuro)
+// as abas exibidas na barra inferior — Catálogo, Lista Pessoal e Busca (Calendário entra no futuro)
 private val abas = listOf(
     AbaInferior(Rotas.CATALOGO, "Catálogo", Icons.AutoMirrored.Filled.List),
-    AbaInferior(Rotas.LISTA, "Lista", Icons.Filled.Favorite)
+    AbaInferior(Rotas.LISTA, "Lista", Icons.Filled.Favorite),
+    AbaInferior(Rotas.BUSCA, "Busca", Icons.Filled.Search)
 )
 
 // GameCountdownApp: a raiz da UI navegável do app. Monta a barra inferior + o NavHost que troca as telas.
@@ -58,8 +64,8 @@ fun GameCountdownApp() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val rotaAtual = backStackEntry?.destination?.route
 
-    // a barra inferior só aparece nas telas de aba (Catálogo/Lista); em Detalhes (tela empilhada) ela some
-    val mostrarBarra = rotaAtual == Rotas.CATALOGO || rotaAtual == Rotas.LISTA
+    // a barra inferior só aparece nas telas de aba (Catálogo/Lista/Busca); em Detalhes (tela empilhada) ela some
+    val mostrarBarra = rotaAtual in setOf(Rotas.CATALOGO, Rotas.LISTA, Rotas.BUSCA)
 
     Scaffold(
         bottomBar = {
@@ -98,6 +104,15 @@ fun GameCountdownApp() {
             composable(Rotas.LISTA) {
                 val vm: ListaPessoalViewModel = viewModel(factory = ListaPessoalViewModelFactory())
                 ListaPessoalScreen(
+                    viewModel = vm,
+                    onJogoClick = { id -> navController.navigate(Rotas.detalhes(id)) }
+                )
+            }
+
+            // destino: Busca
+            composable(Rotas.BUSCA) {
+                val vm: BuscaViewModel = viewModel(factory = BuscaViewModelFactory())
+                BuscaScreen(
                     viewModel = vm,
                     onJogoClick = { id -> navController.navigate(Rotas.detalhes(id)) }
                 )

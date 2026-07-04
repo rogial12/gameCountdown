@@ -7,7 +7,6 @@ import com.almenara.gamecountdown.data.service.CriterioOrdenacao // enum de orde
 import com.almenara.gamecountdown.data.service.FiltroCatalogo    // agrupador de filtros, vem do Service
 import com.almenara.gamecountdown.data.service.GameService       // interface que o fake abaixo implementa
 import org.junit.Assert.assertEquals // verifica se dois valores são iguais
-import org.junit.Assert.assertFalse  // verifica se uma condição é falsa
 import org.junit.Assert.assertNull   // verifica se um valor é nulo
 import org.junit.Assert.assertTrue   // verifica se uma condição é verdadeira
 import org.junit.Before              // marca o método que roda antes de cada teste
@@ -141,40 +140,5 @@ class CatalogoViewModelTest {
 
         assertEquals(0, fakeService.chamadasSetWatched)
         assertNull(viewModel.uiState.value.mensagemErro) // e não deve gerar erro nenhum
-    }
-
-    // abrirBusca deve ligar o modo busca, limpar o texto e, sem nada digitado, listar todos os jogos
-    @Test
-    fun `abrirBusca ativa o modo e lista todos inicialmente`() {
-        viewModel.abrirBusca()
-
-        val estado = viewModel.uiState.value
-        assertTrue(estado.buscando)                            // modo busca ligado
-        assertEquals("", estado.busca)                        // texto começa vazio
-        assertEquals(listOf("1", "2"), estado.jogos.map { it.game.id }) // searchGames("") devolve todos
-    }
-
-    // atualizarBusca deve filtrar os jogos pelo título (o fake casa "alpha" com "Alpha Quest")
-    @Test
-    fun `atualizarBusca filtra os jogos pelo titulo`() {
-        viewModel.abrirBusca()
-        viewModel.atualizarBusca("alpha")
-
-        val estado = viewModel.uiState.value
-        assertEquals("alpha", estado.busca)                    // texto guardado no estado
-        assertEquals(listOf("1"), estado.jogos.map { it.game.id }) // só o jogo cujo título contém "alpha"
-    }
-
-    // fecharBusca deve desligar o modo busca, limpar o texto e voltar ao catálogo completo
-    @Test
-    fun `fecharBusca volta ao catalogo completo`() {
-        viewModel.abrirBusca()
-        viewModel.atualizarBusca("alpha")
-        viewModel.fecharBusca()
-
-        val estado = viewModel.uiState.value
-        assertFalse(estado.buscando)                           // modo busca desligado
-        assertEquals("", estado.busca)                         // texto limpo
-        assertEquals(listOf("1", "2"), estado.jogos.map { it.game.id }) // getGames volta a listar todos
     }
 }

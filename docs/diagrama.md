@@ -663,3 +663,47 @@ docs/game-countdown-app-spec.md ← ALTERADO: nova seção "Visão de Calendári
 ---
 
 *Próximo passo: Passo 2 do roadmap — **Busca como aba inferior**: criar a tela/ViewModel de Busca (reusando `searchGames`), remover o modo de busca do Catálogo e adicionar a aba na `NavigationBar`.*
+
+---
+
+## Passo 19 — Busca como aba própria (Fase 2)
+
+**O que foi feito:** A busca deixou de ser um modo dentro do Catálogo (a lupa que transformava a barra de topo) e virou uma **aba própria** na barra inferior, ao lado de Catálogo e Lista. Criou-se a feature de Busca (`BuscaViewModel` + estado + Factory + `BuscaScreen`, com 4 testes) e removeu-se toda a lógica de busca do Catálogo, que ficou mais simples. Este é o Passo 2 do roadmap do Calendário — libera o canto superior direito do Catálogo para o futuro botão de calendário.
+
+**Decisão de Igor:** a busca passa a ser acessível por um botão na barra de navegação inferior (não mais pela lupa no topo). Avaliou-se a mudança como "média, mas limpa e sem risco", e optou-se por fazê-la de verdade (não placeholder), já que um placeholder deixaria a busca quebrada e a fiação teria de ser refeita depois.
+
+**Por quê desta forma (implementação):**
+
+- **`BuscaViewModel` começa vazio e só busca ao digitar.** Sem `init`/carga inicial: enquanto o texto está vazio, os resultados ficam vazios e a tela mostra uma dica ("Busque um jogo pelo título"). Ao digitar, chama `searchGames` (casa por título) e calcula os dias de cada resultado. Mantém a decisão anterior: busca é por título, independente de filtros/ordenação.
+- **`JogoBusca` (jogo + dias)** é um tipo próprio da feature, espelhando `JogoCatalogo`/`JogoLista` — mesma escolha de não acoplar features por um modelo compartilhado (fica registrado que os três podem ser unificados no futuro).
+- **Catálogo ficou mais enxuto.** Removeram-se do `CatalogoUiState` os campos `buscando`/`busca`; do `CatalogoViewModel`, os métodos `abrirBusca`/`atualizarBusca`/`fecharBusca` e a ramificação em `carregarJogos` (que agora é só `getGames`); da `CatalogoScreen`, todo o `CatalogoTopBar` de dois modos virou um simples título "Catálogo". Os 3 testes de busca do Catálogo saíram (a cobertura migrou para `BuscaViewModelTest`).
+- **A tela de Busca** tem o campo na barra de topo (com lupa decorativa e botão limpar), foca automaticamente ao abrir a aba (teclado sobe), e mostra três estados: dica (sem texto), "Nenhum jogo encontrado" (sem resultados) e a lista de `GameCard`. Tocar num resultado navega para os Detalhes.
+- **Nova aba na navegação:** adicionou-se a rota `busca` ao `NavHost`, o item na `NavigationBar` (ícone de lupa) e a Busca ao conjunto de telas que exibem a barra inferior.
+
+**Sobre os testes (4 novos na Busca):** estado inicial vazio; buscar retorna os jogos que casam por título (com dias pareados); buscar com texto vazio zera os resultados; buscar sem correspondência retorna vazio. Verificado também no aparelho: a aba Busca filtra por título e mostra o card com capa real.
+
+### Arquivos criados/alterados
+
+```
+ui/busca/
+├── BuscaUiState.kt            ← NOVO: JogoBusca (jogo + dias) + BuscaUiState (query + resultados)
+├── BuscaViewModel.kt          ← NOVO: buscar(query) via searchGames
+├── BuscaViewModelFactory.kt   ← NOVO: cria o ViewModel com o GameService compartilhado
+└── BuscaScreen.kt             ← NOVO: campo no topo + estados (dica / vazio / lista)
+
+ui/catalogo/
+├── CatalogoUiState.kt         ← ALTERADO: removidos buscando/busca
+├── CatalogoViewModel.kt       ← ALTERADO: removidos os métodos de busca; carregarJogos só usa getGames
+└── CatalogoScreen.kt          ← ALTERADO: topo virou só o título (sem lupa/campo de busca)
+
+ui/navigation/GameCountdownApp.kt  ← ALTERADO: rota + aba Busca na barra inferior
+
+src/test/ui/busca/BuscaViewModelTest.kt      ← NOVO: 4 testes
+src/test/ui/catalogo/CatalogoViewModelTest.kt ← ALTERADO: removidos os 3 testes de busca
+```
+
+**Estado:** três abas na barra inferior (Catálogo, Lista, Busca); o topo do Catálogo está livre para o botão de calendário. Falta o Passo 3 do roadmap: o **Calendário** em si.
+
+---
+
+*Próximo passo: Passo 3 do roadmap — o **Calendário**: o componente de grade mensal reutilizável (com capas nos dias via GameCover, selo "+N", hoje destacado, setas de mês), o toggle de visão (lista ↔ grade) em Catálogo e Lista Pessoal, e o bottom sheet ao tocar um dia.*
