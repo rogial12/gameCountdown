@@ -5,19 +5,33 @@ import androidx.compose.foundation.layout.Box // container usado para centraliza
 import androidx.compose.foundation.layout.Column // empilha a FilterBar sobre o conteúdo (lista ou vazio)
 import androidx.compose.foundation.layout.PaddingValues // espaçamento ao redor do conteúdo da lista
 import androidx.compose.foundation.layout.fillMaxSize // faz um componente ocupar todo o espaço disponível
+import androidx.compose.foundation.layout.fillMaxWidth // faz o campo de busca ocupar toda a largura da barra de topo
 import androidx.compose.foundation.layout.padding // aplica espaçamento (usado com o padding do Scaffold)
 import androidx.compose.foundation.lazy.LazyColumn // lista vertical que só compõe os itens visíveis (eficiente para rolagem)
 import androidx.compose.foundation.lazy.items // gera um item da LazyColumn para cada elemento de uma lista
+import androidx.compose.material.icons.Icons // ponto de acesso ao conjunto de ícones do Material
+import androidx.compose.material.icons.automirrored.filled.ArrowBack // ícone de "voltar" (espelha em idiomas RTL)
+import androidx.compose.material.icons.filled.Close // ícone de "limpar" (X) dentro do campo de busca
+import androidx.compose.material.icons.filled.Search // ícone de lupa que abre a busca
 import androidx.compose.material3.ExperimentalMaterial3Api // a TopAppBar ainda é marcada como API experimental do Material 3
+import androidx.compose.material3.Icon // desenha um ícone vetorial
+import androidx.compose.material3.IconButton // botão clicável que contém só um ícone
 import androidx.compose.material3.MaterialTheme // acesso ao tema atual (cores, tipografia)
 import androidx.compose.material3.Scaffold // estrutura básica de tela do Material 3 (barra de topo + conteúdo)
 import androidx.compose.material3.Text // componente que desenha um texto na tela
+import androidx.compose.material3.TextField // campo de texto editável, usado como caixa de busca na barra de topo
+import androidx.compose.material3.TextFieldDefaults // fornece as cores padrão do TextField, que aqui deixamos transparentes
 import androidx.compose.material3.TopAppBar // barra de título no topo da tela
 import androidx.compose.runtime.Composable // anotação que marca uma função como componente de UI do Compose
+import androidx.compose.runtime.LaunchedEffect // roda um efeito uma vez quando o componente entra na tela (focar a busca)
 import androidx.compose.runtime.collectAsState // observa um StateFlow e recompõe a UI quando o estado muda
 import androidx.compose.runtime.getValue // habilita ler o estado observado com 'by' (delegação)
+import androidx.compose.runtime.remember // preserva um valor entre recomposições (o FocusRequester da busca)
 import androidx.compose.ui.Alignment // define alinhamento (centralizar a mensagem de lista vazia)
 import androidx.compose.ui.Modifier // objeto que descreve ajustes de layout/aparência
+import androidx.compose.ui.focus.FocusRequester // permite pedir o foco para o campo de busca ao abri-lo
+import androidx.compose.ui.focus.focusRequester // modifier que liga o FocusRequester ao campo de busca
+import androidx.compose.ui.graphics.Color // usado para deixar o fundo/linha do campo de busca transparentes
 import androidx.compose.ui.tooling.preview.Preview // permite visualizar o componente no editor sem rodar o app
 import androidx.compose.ui.unit.dp // unidade de medida de distância independente de densidade de tela
 import com.almenara.gamecountdown.data.model.Game // modelo de dados de um jogo; usado no @Preview
@@ -28,8 +42,7 @@ import com.almenara.gamecountdown.data.service.FiltroCatalogo // agrupador de fi
 import com.almenara.gamecountdown.ui.comum.GameCard // componente que exibe um jogo na lista (Passo 8)
 
 // CatalogoScreen: a tela de Catálogo "com estado" — é o ponto onde a UI se conecta ao ViewModel.
-// Ela observa o CatalogoUiState e repassa os dados e os callbacks para o conteúdo (que é sem estado).
-// Essa divisão (tela com estado + conteúdo sem estado) deixa o conteúdo previewável e testável isoladamente.
+// Ela observa o CatalogoUiState e repassa os dados e os callbacks para a barra de topo e o conteúdo (ambos sem estado).
 @OptIn(ExperimentalMaterial3Api::class) // exigido para usar a TopAppBar, ainda experimental no Material 3
 @Composable
 fun CatalogoScreen(
@@ -44,12 +57,20 @@ fun CatalogoScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(title = { Text("Catálogo") }) // barra com o título da tela
+            // a barra de topo muda de forma conforme o modo (normal x busca); toda a lógica fica no CatalogoTopBar
+            CatalogoTopBar(
+                buscando = uiState.buscando,                 // se o modo busca está ativo
+                busca = uiState.busca,                       // o texto digitado
+                onAbrirBusca = viewModel::abrirBusca,        // lupa: abre a busca
+                onAtualizarBusca = viewModel::atualizarBusca, // digitação: atualiza os resultados
+                onFecharBusca = viewModel::fecharBusca       // voltar: fecha a busca
+            )
         }
     ) { innerPadding ->
         // innerPadding é o espaço reservado pela barra de topo; é repassado ao conteúdo para ele não ficar atrás dela
         CatalogoConteudo(
             jogos = uiState.jogos,                          // lista de jogos (com dias) a exibir
+            buscando = uiState.buscando,                    // no modo busca, a FilterBar fica escondida
             filtro = uiState.filtro,                        // filtro atual, para a FilterBar refletir o estado
             ordenacao = uiState.ordenacao,                  // ordenação atual, idem
             onFiltroChange = viewModel::aplicarFiltro,      // ao mudar um filtro, chama o método do ViewModel
@@ -60,11 +81,78 @@ fun CatalogoScreen(
     }
 }
 
+// CatalogoTopBar: a barra de topo, que tem duas formas conforme o modo.
+// modo normal: título "Catálogo" + lupa à direita. modo busca: voltar + campo de texto + limpar.
+// é 'private' porque só a tela de Catálogo usa; recebe tudo por parâmetro (sem estado próprio de negócio).
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CatalogoTopBar(
+    buscando: Boolean,                        // true = mostra o campo de busca; false = mostra título + lupa
+    busca: String,                            // texto atual da busca (para preencher o campo e decidir o botão limpar)
+    onAbrirBusca: () -> Unit,                 // chamado ao tocar a lupa
+    onAtualizarBusca: (String) -> Unit,       // chamado a cada digitação (e para limpar, com "")
+    onFecharBusca: () -> Unit                 // chamado ao tocar o "voltar"
+) {
+    if (buscando) {
+        // FocusRequester permite pedir o foco para o campo assim que ele aparece, já abrindo o teclado
+        val focusRequester = remember { FocusRequester() }
+        // LaunchedEffect(Unit): roda uma única vez quando a barra de busca entra na tela — foca o campo
+        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+        TopAppBar(
+            navigationIcon = {
+                // botão "voltar": fecha o modo busca e volta ao catálogo normal
+                IconButton(onClick = onFecharBusca) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Fechar busca")
+                }
+            },
+            title = {
+                // campo de texto da busca; ocupa a largura da barra e recebe o foco automaticamente
+                TextField(
+                    value = busca,                          // texto atual, vindo do estado
+                    onValueChange = onAtualizarBusca,       // cada tecla digitada atualiza a busca no ViewModel
+                    placeholder = { Text("Buscar jogo...") }, // dica exibida quando o campo está vazio
+                    singleLine = true,                      // busca cabe em uma linha
+                    modifier = Modifier
+                        .fillMaxWidth()                     // ocupa toda a largura disponível
+                        .focusRequester(focusRequester),    // liga o campo ao pedido de foco acima
+                    // deixa fundo e linha do TextField transparentes para ele se integrar visualmente à barra de topo
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    )
+                )
+            },
+            actions = {
+                // botão "limpar" (X): só aparece quando há texto; limpa a busca sem fechar o modo
+                if (busca.isNotEmpty()) {
+                    IconButton(onClick = { onAtualizarBusca("") }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Limpar busca")
+                    }
+                }
+            }
+        )
+    } else {
+        // modo normal: título da tela + lupa que abre a busca
+        TopAppBar(
+            title = { Text("Catálogo") },
+            actions = {
+                IconButton(onClick = onAbrirBusca) {
+                    Icon(Icons.Filled.Search, contentDescription = "Buscar")
+                }
+            }
+        )
+    }
+}
+
 // CatalogoConteudo: o corpo da tela "sem estado" — recebe tudo por parâmetro e só desenha + emite callbacks.
 // não conhece o ViewModel, o que o torna fácil de visualizar no @Preview e de testar isoladamente.
 @Composable
 private fun CatalogoConteudo(
-    jogos: List<JogoCatalogo>,                       // jogos já filtrados/ordenados, com os dias calculados
+    jogos: List<JogoCatalogo>,                       // jogos já filtrados/ordenados (ou resultados da busca), com os dias
+    buscando: Boolean,                               // no modo busca, a FilterBar não é exibida
     filtro: FiltroCatalogo,                          // filtro atual (para a FilterBar)
     ordenacao: CriterioOrdenacao,                    // ordenação atual (para a FilterBar)
     onFiltroChange: (FiltroCatalogo) -> Unit,        // emite o novo filtro
@@ -72,17 +160,19 @@ private fun CatalogoConteudo(
     onJogoClick: (String) -> Unit,                   // emite o id do jogo tocado
     modifier: Modifier = Modifier                    // ajustes externos (aqui: o padding da barra de topo)
 ) {
-    // Column empilha a barra de filtros no topo e, abaixo, a lista de jogos (ou a mensagem de vazio)
+    // Column empilha a barra de filtros (quando visível) e, abaixo, a lista de jogos (ou a mensagem de vazio)
     Column(modifier = modifier) {
-        // barra de filtros/ordenação; recebe o estado atual e devolve as mudanças pelos callbacks
-        FilterBar(
-            filtro = filtro,
-            ordenacao = ordenacao,
-            onFiltroChange = onFiltroChange,
-            onOrdenacaoChange = onOrdenacaoChange
-        )
+        // a FilterBar só aparece fora do modo busca — durante a busca, filtros e ordenação ficam de fora (decisão de produto)
+        if (!buscando) {
+            FilterBar(
+                filtro = filtro,
+                ordenacao = ordenacao,
+                onFiltroChange = onFiltroChange,
+                onOrdenacaoChange = onOrdenacaoChange
+            )
+        }
 
-        // se nenhum jogo passou pelos filtros, mostra uma mensagem centralizada em vez de uma lista vazia
+        // se nenhum jogo passou pelos filtros/busca, mostra uma mensagem centralizada em vez de uma lista vazia
         if (jogos.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),      // ocupa todo o espaço restante abaixo da barra
@@ -139,6 +229,7 @@ private fun CatalogoConteudoPreview() {
     )
     CatalogoConteudo(
         jogos = exemplos,
+        buscando = false, // preview no modo normal (com a FilterBar visível)
         filtro = FiltroCatalogo(),
         ordenacao = CriterioOrdenacao.MAIS_PROXIMOS,
         onFiltroChange = {},

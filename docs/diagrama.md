@@ -384,3 +384,45 @@ MainActivity.kt   ← ALTERADO: remove o Greeting/"Hello Android!" do template;
 ---
 
 *Próximo passo: a definir com Igor. Opções naturais: (a) a feature de **Lista Pessoal** ("Jogos que estou de olho"), que reaproveita `GameCard` e precisa de um `ListaPessoalViewModel`; (b) a tela de **Detalhes**, onde o `getDaysUntilRelease` e a sinopse/trailer entram, com um `DetalhesViewModel`; (c) expor a **busca** (já existe no Service) no Catálogo; (d) a navegação entre telas, que costura tudo. As três lacunas de ViewModel mapeadas antes do Passo 6 seguem pendentes.*
+
+---
+
+## Passo 12 — Busca no Catálogo (ui/catalogo/) (Fase 2)
+
+**O que foi feito:** Exposição da busca (que já existia e era testada no Service) na tela de Catálogo. Uma lupa na barra de topo abre um campo de busca que filtra os jogos por título. Feito em duas partes: **(1)** estado + ViewModel (com 3 testes novos) e **(2)** a UI da barra de busca. Fecha a primeira das três lacunas de ViewModel mapeadas antes do Passo 6.
+
+**Decisões de produto tomadas por Igor:**
+
+- **Busca é um MODO separado, que não conversa com filtros/ordenação.** Opções consideradas: (a) integrar o texto ao pipeline de `getGames` (busca + filtros + ordenação combinados); (b) modo separado, usando `searchGames` e ignorando filtros/ordenação. Escolheu-se **(b)**. Enquanto a busca está aberta, a `FilterBar` some e os resultados vêm só de `searchGames` (casamento por título). Vantagem: não mexe no contrato do Service (o `getGames` e o `FiltroCatalogo` ficam intactos). Registrado para o futuro: a busca deve ganhar tela dedicada, acessível por uma barra de navegação inferior (Catálogo / Lista Pessoal / Calendário / Busca), e pode ganhar filtros próprios então.
+- **Lupa na barra de topo, do lado oposto ao título.** Ao tocar, a barra de topo se transforma: título → campo de texto, com "voltar" à esquerda e "limpar" (X) à direita. Alternativa descartada: campo de busca fixo sempre visível abaixo do título.
+
+**Por quê desta forma (implementação):**
+
+- **O modo busca vive no estado (`buscando` + `busca`).** O `CatalogoUiState` ganhou dois campos: `buscando` (o campo de busca está aberto?) e `busca` (o texto). O `carregarJogos()` passou a ramificar: se `buscando`, usa `searchGames(busca)`; senão, `getGames(filtro, ordenacao)`. Assim o mesmo método serve os dois modos, e a tela continua só observando estado.
+- **Três ações no ViewModel:** `abrirBusca()` (liga o modo e lista todos como ponto de partida — `searchGames("")` devolve tudo), `atualizarBusca(texto)` (refaz a busca a cada tecla) e `fecharBusca()` (desliga o modo e volta ao catálogo com os filtros/ordenação que estavam ativos).
+- **Barra de topo com duas formas, sem estado próprio.** O `CatalogoTopBar` é um Composable privado que decide entre "título + lupa" e "voltar + campo + limpar" conforme o `buscando`. O campo recebe foco automático ao abrir (via `FocusRequester` + `LaunchedEffect`), já subindo o teclado.
+- **A `FilterBar` só aparece fora da busca** — o `CatalogoConteudo` recebe `buscando` e omite a barra de filtros no modo busca, refletindo a decisão de que busca e filtros não se misturam (por ora).
+
+**Sobre os testes (3 novos, total de 10 no ViewModel):** cobrem o ciclo completo do modo busca — `abrirBusca` liga o modo e lista todos; `atualizarBusca` filtra por título (o fake casa "alpha" com "Alpha Quest"); `fecharBusca` desliga o modo, limpa o texto e volta ao catálogo completo. A UI da barra (desenho) fica para os testes instrumentados, como os demais componentes Compose.
+
+**Dependência adicionada:** `androidx.compose.material:material-icons-core` (gerenciada pelo BOM, sem versão fixa). Necessária para os ícones de lupa, voltar e limpar — não vinha transitivamente do `material3`. Optou-se pelo pacote **-core** (conjunto básico de ícones), não pelo `-extended`, que é muito maior e desnecessário aqui.
+
+### Arquivos criados/alterados
+
+```
+ui/catalogo/
+├── CatalogoUiState.kt    ← ALTERADO: campos 'buscando' e 'busca'
+├── CatalogoViewModel.kt  ← ALTERADO: carregarJogos() ramifica por modo; abrirBusca/atualizarBusca/fecharBusca
+└── CatalogoScreen.kt     ← ALTERADO: CatalogoTopBar (lupa ↔ campo de busca); FilterBar escondida no modo busca
+
+src/test/ui/catalogo/
+└── CatalogoViewModelTest.kt  ← ALTERADO: +3 testes do modo busca (total 10)
+
+gradle/libs.versions.toml + app/build.gradle.kts  ← ALTERADO: dependência material-icons-core
+```
+
+**Estado da feature de Catálogo:** completa, com busca. Seguem pendentes as outras duas lacunas de ViewModel: `ListaPessoalViewModel` e `DetalhesViewModel`, além da navegação entre telas.
+
+---
+
+*Próximo passo: a definir com Igor — provavelmente a **Lista Pessoal**, a tela de **Detalhes**, ou a **navegação** que costura as telas (hoje o clique no card já emite o id, mas ainda sem destino).*
