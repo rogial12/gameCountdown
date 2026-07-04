@@ -21,7 +21,8 @@ private class FakeGameService(private val jogos: List<Game>) : GameService {
 
     override fun getGames(filtro: FiltroCatalogo, ordenacao: CriterioOrdenacao): List<Game> = jogos
     override fun searchGames(query: String): List<Game> = emptyList()
-    override fun getWatchedGames(): List<Game> = jogos.filter { it.id in watched }
+    override fun getWatchedGames(filtro: FiltroCatalogo, ordenacao: CriterioOrdenacao): List<Game> =
+        jogos.filter { it.id in watched }
 
     // devolve o jogo pelo id, refletindo o estado atual de "de olho"; null se não existir
     override fun getGameById(id: String): Game? =

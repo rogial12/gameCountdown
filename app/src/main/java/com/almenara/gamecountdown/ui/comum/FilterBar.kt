@@ -1,4 +1,4 @@
-package com.almenara.gamecountdown.ui.catalogo // pacote da feature de catálogo (a FilterBar é específica desta tela)
+package com.almenara.gamecountdown.ui.comum // fica em ui/comum/ por ser usada por mais de uma tela (Catálogo e Lista Pessoal)
 
 import androidx.compose.foundation.horizontalScroll // permite rolar a linha de botões na horizontal quando não cabem
 import androidx.compose.foundation.layout.Arrangement // define o espaçamento entre os botões da barra
@@ -85,13 +85,13 @@ private fun <T> FilterDropdown(
     }
 }
 
-// FilterBar: a barra de filtros e ordenação da tela de Catálogo.
+// FilterBar: a barra de filtros e ordenação, usada pela tela de Catálogo e pela Lista Pessoal.
 // É "sem estado de negócio": recebe o filtro/ordenação atuais e apenas EMITE o novo valor via callback —
-// quem guarda e aplica o estado é o CatalogoViewModel. Isso mantém a barra reutilizável e previsível.
+// quem guarda e aplica o estado é o ViewModel de cada tela. Isso mantém a barra reutilizável e previsível.
 @Composable
 fun FilterBar(
-    filtro: FiltroCatalogo,                          // filtro atualmente aplicado (vindo do CatalogoUiState)
-    ordenacao: CriterioOrdenacao,                    // ordenação atualmente aplicada (vindo do CatalogoUiState)
+    filtro: FiltroCatalogo,                          // filtro atualmente aplicado (vindo do UiState da tela)
+    ordenacao: CriterioOrdenacao,                    // ordenação atualmente aplicada (vindo do UiState da tela)
     onFiltroChange: (FiltroCatalogo) -> Unit,        // chamado com o novo filtro quando o usuário muda algum menu
     onOrdenacaoChange: (CriterioOrdenacao) -> Unit,  // chamado com a nova ordenação quando o usuário a troca
     modifier: Modifier = Modifier                    // ajustes externos; padrão = nenhum

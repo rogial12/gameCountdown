@@ -162,4 +162,25 @@ class GameServiceImplTest {
         service.setWatched("1", false)
         assertTrue(service.getWatchedGames().none { it.id == "1" })
     }
+
+    // getWatchedGames deve aplicar o filtro só sobre os jogos já marcados como "de olho" (não sobre o catálogo inteiro)
+    @Test
+    fun `getWatchedGames filtra apenas dentro dos jogos observados`() {
+        service.setWatched("1", true) // Alpha Quest — PS5
+        service.setWatched("2", true) // Zeta Storm — PC
+        service.setWatched("3", true) // Mid Kingdom — PS5
+
+        val ids = service.getWatchedGames(filtro = FiltroCatalogo(plataforma = Platform.PS5)).map { it.id }
+        assertEquals(setOf("1", "3"), ids.toSet()) // "2" é PC, mesmo observado, some do resultado
+    }
+
+    // getWatchedGames deve ordenar os jogos observados com o mesmo critério usado no catálogo
+    @Test
+    fun `getWatchedGames ordena os jogos observados`() {
+        service.setWatched("2", true) // score 90
+        service.setWatched("4", true) // score 30
+
+        val ids = service.getWatchedGames(ordenacao = CriterioOrdenacao.MAIS_AGUARDADOS).map { it.id }
+        assertEquals(listOf("2", "4"), ids) // maior score primeiro
+    }
 }

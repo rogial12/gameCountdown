@@ -1,4 +1,4 @@
-package com.almenara.gamecountdown.ui.catalogo // mesmo pacote das funções testadas, para acessar a visibilidade 'internal'
+package com.almenara.gamecountdown.ui.comum // mesmo pacote das funções testadas, para acessar a visibilidade 'internal'
 
 import com.almenara.gamecountdown.data.service.CriterioOrdenacao // enum de ordenação, vem do Service
 import com.almenara.gamecountdown.data.service.PeriodoLancamento // enum de janelas de lançamento, vem do Service

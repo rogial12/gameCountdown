@@ -16,8 +16,21 @@ class GameServiceImpl(
 ) : GameService {
 
     // retorna o catálogo já filtrado e ordenado
-    override fun getGames(filtro: FiltroCatalogo, ordenacao: CriterioOrdenacao): List<Game> {
-        var resultado = repository.getGames() // começa com o catálogo completo vindo do Repository
+    override fun getGames(filtro: FiltroCatalogo, ordenacao: CriterioOrdenacao): List<Game> =
+        aplicarFiltroEOrdenacao(repository.getGames(), filtro, ordenacao) // começa do catálogo completo do Repository
+
+    // retorna a lista pessoal já filtrada e ordenada — mesma regra do catálogo, aplicada só sobre os jogos "de olho"
+    override fun getWatchedGames(filtro: FiltroCatalogo, ordenacao: CriterioOrdenacao): List<Game> =
+        aplicarFiltroEOrdenacao(repository.getWatchedGames(), filtro, ordenacao) // começa só dos jogos observados
+
+    // função privada compartilhada: aplica filtro de plataforma/gênero/período e a ordenação escolhida
+    // sobre QUALQUER lista de jogos recebida — extraída para não duplicar a regra entre getGames e getWatchedGames
+    private fun aplicarFiltroEOrdenacao(
+        jogos: List<Game>,
+        filtro: FiltroCatalogo,
+        ordenacao: CriterioOrdenacao
+    ): List<Game> {
+        var resultado = jogos
 
         // se um filtro de plataforma foi definido, mantém só os jogos que a contêm na lista de plataformas
         filtro.plataforma?.let { plataforma ->
@@ -50,13 +63,11 @@ class GameServiceImpl(
         return resultado
     }
 
-    // os quatro métodos abaixo não têm regra de negócio própria — apenas repassam a chamada ao Repository
+    // os três métodos abaixo não têm regra de negócio própria — apenas repassam a chamada ao Repository
     // eles existem no Service (em vez da UI chamar o Repository direto) para manter a UI desacoplada da fonte de dados
     override fun getGameById(id: String): Game? = repository.getGameById(id)
 
     override fun searchGames(query: String): List<Game> = repository.searchGames(query)
-
-    override fun getWatchedGames(): List<Game> = repository.getWatchedGames()
 
     override fun setWatched(id: String, watched: Boolean) = repository.setWatched(id, watched)
 

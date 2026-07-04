@@ -26,9 +26,20 @@ private class FakeGameService(
 
     override fun searchGames(query: String): List<Game> = emptyList() // não usado aqui
 
-    // devolve só os jogos cujo id está no conjunto watched, marcando isWatched = true
-    override fun getWatchedGames(): List<Game> =
-        jogos.filter { it.id in watched }.map { it.copy(isWatched = true) }
+    // devolve só os jogos cujo id está no conjunto watched, marcando isWatched = true;
+    // aplica filtro de plataforma/gênero e ordenação alfabética/aguardados, o suficiente para testar o repasse do ViewModel
+    // (não reimplementa a regra de período, que já é coberta pelos testes do GameServiceImpl)
+    override fun getWatchedGames(filtro: FiltroCatalogo, ordenacao: CriterioOrdenacao): List<Game> {
+        var resultado = jogos.filter { it.id in watched }
+        filtro.plataforma?.let { plataforma -> resultado = resultado.filter { plataforma in it.platforms } }
+        filtro.genero?.let { genero -> resultado = resultado.filter { genero in it.genres } }
+        resultado = when (ordenacao) {
+            CriterioOrdenacao.MAIS_AGUARDADOS -> resultado.sortedByDescending { it.anticipationScore }
+            CriterioOrdenacao.MAIS_PROXIMOS -> resultado.sortedBy { it.releaseDate }
+            CriterioOrdenacao.ALFABETICA -> resultado.sortedBy { it.title }
+        }
+        return resultado.map { it.copy(isWatched = true) }
+    }
 
     override fun setWatched(id: String, watched: Boolean) {
         if (watched) this.watched.add(id) else this.watched.remove(id)
@@ -40,11 +51,12 @@ private class FakeGameService(
 // classe de testes do ListaPessoalViewModel
 class ListaPessoalViewModelTest {
 
-    // três jogos; começam com "2" e "3" marcados como "de olho" (o "1" fica de fora)
+    // três jogos; começam com "2" e "3" marcados como "de olho" (o "1" fica de fora).
+    // "2" é PC com score alto e "3" é PS5 com score baixo — para diferenciar filtro/ordenação nos novos testes
     private val jogos = listOf(
-        gameFake(id = "1", title = "Alpha Quest"),
-        gameFake(id = "2", title = "Beta Realm"),
-        gameFake(id = "3", title = "Gamma Rising")
+        gameFake(id = "1", title = "Alpha Quest", platform = Platform.PS5, anticipationScore = 10),
+        gameFake(id = "2", title = "Beta Realm", platform = Platform.PC, anticipationScore = 90),
+        gameFake(id = "3", title = "Gamma Rising", platform = Platform.PS5, anticipationScore = 50)
     )
 
     private lateinit var fakeService: FakeGameService
@@ -92,14 +104,40 @@ class ListaPessoalViewModelTest {
         val estado = viewModel.uiState.value
         assertEquals(listOf("2", "3"), estado.jogos.map { it.game.id }) // "2" de volta; ordem preservada
     }
+
+    // aplicarFiltro deve guardar o filtro no estado e recarregar a lista pessoal já filtrada
+    @Test
+    fun `aplicarFiltro guarda o filtro no estado e filtra a lista pessoal`() {
+        viewModel.aplicarFiltro(FiltroCatalogo(plataforma = Platform.PS5))
+
+        val estado = viewModel.uiState.value
+        assertEquals(FiltroCatalogo(plataforma = Platform.PS5), estado.filtro)
+        assertEquals(listOf("3"), estado.jogos.map { it.game.id }) // "2" é PC e sai do resultado, mesmo observado
+    }
+
+    // aplicarOrdenacao deve guardar o critério no estado e reordenar a lista pessoal
+    @Test
+    fun `aplicarOrdenacao guarda a ordenacao no estado e reordena a lista pessoal`() {
+        viewModel.aplicarOrdenacao(CriterioOrdenacao.MAIS_AGUARDADOS)
+
+        val estado = viewModel.uiState.value
+        assertEquals(CriterioOrdenacao.MAIS_AGUARDADOS, estado.ordenacao)
+        assertEquals(listOf("2", "3"), estado.jogos.map { it.game.id }) // scores 90 e 50, maior primeiro
+    }
 }
 
-// função de apoio: cria um Game fictício preenchendo só o essencial para estes testes
-private fun gameFake(id: String, title: String): Game = Game(
+// função de apoio: cria um Game fictício preenchendo só o essencial para estes testes;
+// plataforma e score têm padrão, mas podem variar para os testes de filtro/ordenação
+private fun gameFake(
+    id: String,
+    title: String,
+    platform: Platform = Platform.PS5,
+    anticipationScore: Int = 50
+): Game = Game(
     id = id,
     title = title,
     releaseDate = "2026-08-15",
-    platforms = listOf(Platform.PS5),
+    platforms = listOf(platform),
     genres = listOf(Genre.RPG),
     developer = "Fake Studio",
     synopsis = "",
@@ -107,5 +145,6 @@ private fun gameFake(id: String, title: String): Game = Game(
     priceUsd = null,
     priceBrl = null,
     trailerId = null,
-    preSaleDate = null
+    preSaleDate = null,
+    anticipationScore = anticipationScore
 )

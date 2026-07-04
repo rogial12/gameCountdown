@@ -827,4 +827,53 @@ src/androidTest/ui/comum/
 
 ---
 
-*Próximo passo: a definir com Igor — revisar/polir o protótipo, escrever os primeiros testes instrumentados de feature (com permissão antes de rodar), ou encerrar a Fase 2 e planejar a Fase 3 (backend v0).*
+## Passo 24 — Rodada de feedback pós-protótipo: filtros na Lista Pessoal (Fase 2)
+
+**O que foi feito:** Primeira fatia de uma rodada de ajustes que Igor levantou usando o protótipo (9 apontamentos). Esta fatia cobre o item 3: a Lista Pessoal ganhou acesso aos mesmos filtros (plataforma/gênero/período) e ordenação já existentes no Catálogo, reusando a `FilterBar`. De quebra, corrigiu-se um bug de ancoragem da `FilterBar` (item 1/2 do feedback): o `DropdownMenu` de cada filtro não estava ancorado ao próprio botão, então abria numa lateral da tela em vez de logo abaixo, e o espaçamento entre os botões mudava a cada abertura.
+
+**Correção da FilterBar (itens 1 e 2):**
+
+- **Causa raiz única para os dois bugs.** Botão e `DropdownMenu` eram filhos soltos da `Row` da barra. Sem um contêiner comum servindo de âncora, o `DropdownMenu` não sabia em relação a qual botão se posicionar (daí aparecer numa lateral da tela), e por ser tecnicamente mais um filho da `Row`, sua presença mexia no espaçamento calculado entre os botões ao abrir.
+- **Fix:** cada par botão+menu (dentro de `FilterDropdown<T>`) passou a viver dentro de um `Box` próprio, que serve de âncora ao `DropdownMenu` e isola o menu de contar como item da `Row` externa. Resolve os dois sintomas com uma única mudança.
+
+**Por quê desta forma (filtros na Lista Pessoal):**
+
+- **`GameService.getWatchedGames()` ganhou os mesmos parâmetros `filtro`/`ordenacao` de `getGames()`.** Em vez de filtrar no ViewModel (o que duplicaria a regra de negócio já testada em `GameServiceImpl`), a lógica de filtro/ordenação foi extraída para uma função privada compartilhada (`aplicarFiltroEOrdenacao`), usada tanto por `getGames` (sobre o catálogo inteiro) quanto por `getWatchedGames` (só sobre os jogos "de olho"). Mantém a regra num único lugar, testada uma vez.
+- **`ListaPessoalUiState` ganhou `filtro`/`ordenacao`, e o `ListaPessoalViewModel` ganhou `aplicarFiltro`/`aplicarOrdenacao`** — espelhando exatamente o `CatalogoUiState`/`CatalogoViewModel`. A tela continua só observando estado.
+- **A `FilterBar` migrou de `ui/catalogo/` para `ui/comum/`.** Ela nasceu no Catálogo (Passo 9), mas ao passar a ser usada também pela Lista Pessoal deixou de ser exclusiva de uma feature — vira exatamente o caso que `ui/comum/` existe para resolver (componente cross-cutting), igual a `GameCard`, `AddToListSwitch` e `Calendario`. Primeira versão desta mudança deixou a `FilterBar` em `ui/catalogo/` e fez a Lista Pessoal importá-la de lá; Igor apontou que isso criava uma dependência entre pastas de feature vizinhas, contrariando a própria organização por tela definida no Passo 1 — corrigido movendo o arquivo (`.kt` de produção e de teste) para `ui/comum/`, sem duplicar código.
+- **A `ListaPessoalScreen` passou a montar a `FilterBar`** (agora de `ui/comum/`) da mesma forma que a `CatalogoScreen` — `Column` com a barra no topo e a visão (lista/grade/vazio) abaixo.
+
+**Testes:** 2 novos em `GameServiceImplTest` (filtro aplicado só dentro dos observados; ordenação dos observados) + 2 novos em `ListaPessoalViewModelTest` (`aplicarFiltro` atualiza estado e filtra; `aplicarOrdenacao` atualiza estado e reordena). Os fakes de `GameService` usados em `BuscaViewModelTest`, `DetalhesViewModelTest`, `CatalogoViewModelTest` e `CatalogoViewModelFactoryTest` foram ajustados para a nova assinatura de `getWatchedGames` (mudança mecânica, sem novo comportamento).
+
+### Arquivos criados/alterados
+
+```
+ui/comum/
+├── FilterBar.kt                       ← MOVIDO de ui/catalogo/; Box ancorando botão+menu (fix de alinhamento/espaçamento)
+
+ui/catalogo/
+└── CatalogoScreen.kt                  ← ALTERADO: import de FilterBar passa a vir de ui/comum/
+
+data/service/
+├── GameService.kt                     ← ALTERADO: getWatchedGames(filtro, ordenacao)
+└── GameServiceImpl.kt                 ← ALTERADO: aplicarFiltroEOrdenacao() extraída e reusada
+
+ui/lista_pessoal/
+├── ListaPessoalUiState.kt             ← ALTERADO: + filtro, ordenacao
+├── ListaPessoalViewModel.kt           ← ALTERADO: + aplicarFiltro, aplicarOrdenacao
+└── ListaPessoalScreen.kt              ← ALTERADO: FilterBar (de ui/comum/) montada no topo do conteúdo
+
+src/test/.../ui/comum/FilterBarTest.kt                     ← MOVIDO de src/test/.../ui/catalogo/
+src/test/.../data/service/GameServiceImplTest.kt          ← ALTERADO: +2 testes de getWatchedGames
+src/test/.../ui/lista_pessoal/ListaPessoalViewModelTest.kt ← ALTERADO: +2 testes de filtro/ordenação
+src/test/.../ui/busca/BuscaViewModelTest.kt                ← ALTERADO: assinatura do fake
+src/test/.../ui/detalhes/DetalhesViewModelTest.kt          ← ALTERADO: assinatura do fake
+src/test/.../ui/catalogo/CatalogoViewModelTest.kt          ← ALTERADO: assinatura do fake
+src/test/.../ui/catalogo/CatalogoViewModelFactoryTest.kt   ← ALTERADO: assinatura do fake
+```
+
+**Estado:** item 3 do feedback concluído; itens 1 e 2 corrigidos como efeito colateral direto. Seguem os demais itens da rodada: 7 (trocar switch por lixeira na Lista Pessoal), 6 (botão "+" no Catálogo), 4 e 5 (busca), 8 (Detalhes) e 9 (ícone do app) — cada um em commit próprio.
+
+---
+
+*Próximo passo: item 7 — trocar o `AddToListSwitch` das tiles da Lista Pessoal por um botão de lixeira, mantendo a remoção instantânea + desfazer.*

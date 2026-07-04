@@ -35,6 +35,7 @@ import com.almenara.gamecountdown.data.model.Platform // enum de plataformas; us
 import com.almenara.gamecountdown.data.service.CriterioOrdenacao // enum de ordenação; parte da assinatura do conteúdo
 import com.almenara.gamecountdown.data.service.FiltroCatalogo // agrupador de filtros; parte da assinatura do conteúdo
 import com.almenara.gamecountdown.ui.comum.Calendario // visão de grade mensal (Passo 20/3b)
+import com.almenara.gamecountdown.ui.comum.FilterBar // barra de filtros/ordenação, compartilhada com a Lista Pessoal
 import com.almenara.gamecountdown.ui.comum.GameCard // componente que exibe um jogo na lista (Passo 8)
 
 // CatalogoScreen: a tela de Catálogo "com estado" — é o ponto onde a UI se conecta ao ViewModel.

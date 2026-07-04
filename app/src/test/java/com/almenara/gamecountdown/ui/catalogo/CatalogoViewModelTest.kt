@@ -33,7 +33,8 @@ private class FakeGameService(private val jogosBase: List<Game>) : GameService {
     override fun searchGames(query: String): List<Game> =
         jogosBase.filter { it.title.contains(query, ignoreCase = true) }
 
-    override fun getWatchedGames(): List<Game> = jogosBase.filter { it.id in watchedIds }
+    override fun getWatchedGames(filtro: FiltroCatalogo, ordenacao: CriterioOrdenacao): List<Game> =
+        jogosBase.filter { it.id in watchedIds }
 
     override fun setWatched(id: String, watched: Boolean) {
         chamadasSetWatched++

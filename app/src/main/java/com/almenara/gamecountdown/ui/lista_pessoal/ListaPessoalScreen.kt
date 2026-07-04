@@ -2,6 +2,7 @@ package com.almenara.gamecountdown.ui.lista_pessoal // pacote da feature "Jogos 
 
 import androidx.compose.foundation.layout.Arrangement // define o espaçamento entre os itens da lista
 import androidx.compose.foundation.layout.Box // container usado para centralizar a mensagem de "lista vazia"
+import androidx.compose.foundation.layout.Column // empilha a FilterBar sobre o conteúdo (lista, grade ou vazio)
 import androidx.compose.foundation.layout.PaddingValues // espaçamento ao redor do conteúdo da lista
 import androidx.compose.foundation.layout.WindowInsets // usado para zerar os insets do Scaffold interno (o externo cuida deles)
 import androidx.compose.foundation.layout.fillMaxSize // faz um componente ocupar todo o espaço disponível
@@ -37,8 +38,11 @@ import androidx.compose.ui.unit.dp // unidade de medida de distância independen
 import com.almenara.gamecountdown.data.model.Game // modelo de dados de um jogo; usado no @Preview
 import com.almenara.gamecountdown.data.model.Genre // enum de gêneros; usado no @Preview
 import com.almenara.gamecountdown.data.model.Platform // enum de plataformas; usado no @Preview
+import com.almenara.gamecountdown.data.service.CriterioOrdenacao // enum de ordenação; parte da assinatura do conteúdo
+import com.almenara.gamecountdown.data.service.FiltroCatalogo // agrupador de filtros; parte da assinatura do conteúdo
 import com.almenara.gamecountdown.ui.comum.AddToListSwitch // switch de "de olho" (Passo 14)
 import com.almenara.gamecountdown.ui.comum.Calendario // visão de grade mensal (Passo 21)
+import com.almenara.gamecountdown.ui.comum.FilterBar // barra de filtros/ordenação, compartilhada com o Catálogo
 import com.almenara.gamecountdown.ui.comum.GameCard // componente que exibe um jogo na lista (Passo 8)
 import kotlinx.coroutines.launch // inicia uma corrotina para exibir o snackbar sem travar a UI
 
@@ -85,6 +89,10 @@ fun ListaPessoalScreen(
         ListaPessoalConteudo(
             jogos = uiState.jogos,                       // jogos da lista pessoal (com dias)
             modoGrade = modoGrade,                       // se true, mostra a grade de calendário em vez da lista
+            filtro = uiState.filtro,                      // filtro atual, para a FilterBar refletir o estado
+            ordenacao = uiState.ordenacao,                // ordenação atual, idem
+            onFiltroChange = viewModel::aplicarFiltro,     // ao mudar um filtro, chama o método do ViewModel
+            onOrdenacaoChange = viewModel::aplicarOrdenacao, // ao mudar a ordenação, idem
             onRemover = { id ->
                 // remove na hora e exibe um snackbar com a opção de desfazer
                 viewModel.removerDaLista(id)
@@ -112,55 +120,68 @@ fun ListaPessoalScreen(
 private fun ListaPessoalConteudo(
     jogos: List<JogoLista>,            // jogos observados, com os dias já calculados
     modoGrade: Boolean,                // true = grade de calendário; false = lista
+    filtro: FiltroCatalogo,             // filtro atual (para a FilterBar)
+    ordenacao: CriterioOrdenacao,       // ordenação atual (para a FilterBar)
+    onFiltroChange: (FiltroCatalogo) -> Unit,        // emite o novo filtro
+    onOrdenacaoChange: (CriterioOrdenacao) -> Unit,  // emite a nova ordenação
     onRemover: (String) -> Unit,       // emite o id do jogo a remover (switch desligado)
     onJogoClick: (String) -> Unit,     // emite o id do jogo tocado
     modifier: Modifier = Modifier      // ajustes externos (aqui: o padding da barra de topo)
 ) {
-    when {
-        // visão em grade: o Calendário da Lista Pessoal mostra só os jogos "de olho"
-        modoGrade -> {
-            Calendario(
-                jogos = jogos.map { it.game },
-                onJogoClick = onJogoClick,
-                modifier = modifier
-            )
-        }
-        // visão em lista, sem nada: mostra a mensagem de vazio
-        jogos.isEmpty() -> {
-            Box(
-                modifier = modifier.fillMaxSize(),      // ocupa todo o espaço da área de conteúdo
-                contentAlignment = Alignment.Center     // centraliza a mensagem
-            ) {
-                Text(
-                    text = "Você ainda não está de olho em nenhum jogo", // texto do estado vazio
-                    style = MaterialTheme.typography.bodyLarge
+    // Column empilha a barra de filtros no topo e, abaixo, a visão escolhida (grade, lista ou vazio) —
+    // mesma estrutura do CatalogoConteudo (item 3 do feedback: reusar os filtros do Catálogo aqui)
+    Column(modifier = modifier) {
+        FilterBar(
+            filtro = filtro,
+            ordenacao = ordenacao,
+            onFiltroChange = onFiltroChange,
+            onOrdenacaoChange = onOrdenacaoChange
+        )
+
+        when {
+            // visão em grade: o Calendário da Lista Pessoal mostra só os jogos "de olho"
+            modoGrade -> {
+                Calendario(
+                    jogos = jogos.map { it.game },
+                    onJogoClick = onJogoClick
                 )
             }
-        }
-        // visão em lista com jogos: a LazyColumn de cards com o switch de remover
-        else -> {
-            LazyColumn(
-                modifier = modifier,
-                contentPadding = PaddingValues(12.dp),              // respiro ao redor da lista
-                verticalArrangement = Arrangement.spacedBy(12.dp)   // espaço fixo entre os cards
-            ) {
-                // um GameCard por jogo; a 'key' pelo id ajuda o Compose a reaproveitar itens ao remover
-                items(jogos, key = { it.game.id }) { item ->
-                    GameCard(
-                        game = item.game,                          // o jogo a exibir
-                        dias = item.dias,                          // o countdown já calculado
-                        onClick = { onJogoClick(item.game.id) },   // ao tocar o card, avisa com o id
-                        trailing = {
-                            // switch sempre ligado aqui (todo jogo da lista está "de olho");
-                            // ao desligar (marcado = false), pede a remoção do jogo
-                            AddToListSwitch(
-                                marcado = true,
-                                onMarcarChange = { marcado ->
-                                    if (!marcado) onRemover(item.game.id)
-                                }
-                            )
-                        }
+            // visão em lista, sem nada: mostra a mensagem de vazio
+            jogos.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),      // ocupa todo o espaço restante abaixo da barra
+                    contentAlignment = Alignment.Center     // centraliza a mensagem
+                ) {
+                    Text(
+                        text = "Você ainda não está de olho em nenhum jogo", // texto do estado vazio
+                        style = MaterialTheme.typography.bodyLarge
                     )
+                }
+            }
+            // visão em lista com jogos: a LazyColumn de cards com o switch de remover
+            else -> {
+                LazyColumn(
+                    contentPadding = PaddingValues(12.dp),              // respiro ao redor da lista
+                    verticalArrangement = Arrangement.spacedBy(12.dp)   // espaço fixo entre os cards
+                ) {
+                    // um GameCard por jogo; a 'key' pelo id ajuda o Compose a reaproveitar itens ao remover
+                    items(jogos, key = { it.game.id }) { item ->
+                        GameCard(
+                            game = item.game,                          // o jogo a exibir
+                            dias = item.dias,                          // o countdown já calculado
+                            onClick = { onJogoClick(item.game.id) },   // ao tocar o card, avisa com o id
+                            trailing = {
+                                // switch sempre ligado aqui (todo jogo da lista está "de olho");
+                                // ao desligar (marcado = false), pede a remoção do jogo
+                                AddToListSwitch(
+                                    marcado = true,
+                                    onMarcarChange = { marcado ->
+                                        if (!marcado) onRemover(item.game.id)
+                                    }
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -191,5 +212,14 @@ private fun ListaPessoalConteudoPreview() {
             dias = 120L
         )
     )
-    ListaPessoalConteudo(jogos = exemplos, modoGrade = false, onRemover = {}, onJogoClick = {})
+    ListaPessoalConteudo(
+        jogos = exemplos,
+        modoGrade = false,
+        filtro = FiltroCatalogo(),
+        ordenacao = CriterioOrdenacao.MAIS_PROXIMOS,
+        onFiltroChange = {},
+        onOrdenacaoChange = {},
+        onRemover = {},
+        onJogoClick = {}
+    )
 }

@@ -1,6 +1,8 @@
 package com.almenara.gamecountdown.ui.lista_pessoal // pacote da feature "Jogos que estou de olho"
 
 import com.almenara.gamecountdown.data.model.Game // modelo de dados de um jogo, exibido na lista
+import com.almenara.gamecountdown.data.service.CriterioOrdenacao // enum de ordenação, mesmo do Catálogo
+import com.almenara.gamecountdown.data.service.FiltroCatalogo // agrupador de filtros, mesmo do Catálogo
 
 // data class: um jogo da lista pessoal já pronto para exibição, com o countdown JÁ CALCULADO.
 // espelha o papel do JogoCatalogo (jogo + dias), mas é um tipo próprio desta feature para não acoplar
@@ -13,5 +15,7 @@ data class JogoLista(
 // data class: tudo que a tela de Lista Pessoal precisa para se desenhar num dado momento.
 // a UI só lê este objeto — nunca chama o Service diretamente.
 data class ListaPessoalUiState(
-    val jogos: List<JogoLista> = emptyList() // jogos marcados como "de olho" (com dias); vazio = lista sem nada ainda
+    val jogos: List<JogoLista> = emptyList(), // jogos marcados como "de olho" (com dias); vazio = lista sem nada ainda
+    val filtro: FiltroCatalogo = FiltroCatalogo(),                   // filtro atual, mesmo tipo usado no Catálogo
+    val ordenacao: CriterioOrdenacao = CriterioOrdenacao.MAIS_PROXIMOS // ordenação atual, mesmo tipo usado no Catálogo
 )

@@ -43,7 +43,12 @@ interface GameService {
 
     fun searchGames(query: String): List<Game>    // busca por texto no título; repassa ao Repository
 
-    fun getWatchedGames(): List<Game>             // retorna a lista pessoal ("de olho") do usuário
+    // retorna a lista pessoal ("de olho") do usuário, já filtrada e ordenada conforme os parâmetros recebidos
+    // (mesmos filtro/ordenação do catálogo — a Lista Pessoal também precisa desses controles, ver Igor)
+    fun getWatchedGames(
+        filtro: FiltroCatalogo = FiltroCatalogo(),
+        ordenacao: CriterioOrdenacao = CriterioOrdenacao.MAIS_PROXIMOS
+    ): List<Game>
 
     fun setWatched(id: String, watched: Boolean)  // adiciona ou remove um jogo da lista pessoal
 
