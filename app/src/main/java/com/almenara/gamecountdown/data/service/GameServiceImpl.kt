@@ -71,6 +71,9 @@ class GameServiceImpl(
 
     override fun setWatched(id: String, watched: Boolean) = repository.setWatched(id, watched)
 
+    override fun observarMudancasWatched(callback: () -> Unit): () -> Unit =
+        repository.observarMudancasWatched(callback)
+
     // calcula quantos dias faltam entre hoje e a data de lançamento do jogo (pode ser negativo se já lançou)
     override fun getDaysUntilRelease(game: Game): Long {
         val hoje = LocalDate.now(clock) // data de hoje, segundo o relógio injetado

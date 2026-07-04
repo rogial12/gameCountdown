@@ -18,6 +18,7 @@ private class FakeGameServiceVazio : GameService {
     override fun searchGames(query: String): List<Game> = emptyList()
     override fun getWatchedGames(filtro: FiltroCatalogo, ordenacao: CriterioOrdenacao): List<Game> = emptyList()
     override fun setWatched(id: String, watched: Boolean) {}
+    override fun observarMudancasWatched(callback: () -> Unit): () -> Unit = {} // não usado neste teste da Factory
     override fun getDaysUntilRelease(game: Game): Long = 0L
 }
 

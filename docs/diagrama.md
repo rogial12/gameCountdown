@@ -923,4 +923,51 @@ ui/catalogo/
 
 ---
 
+## Passo 27 — Sincronizar "de olho" entre Catálogo, Lista Pessoal e Detalhes (Fase 2)
+
+**O que foi feito:** Correção de um bug encontrado por Igor em teste manual: marcar/desmarcar um jogo como "de olho" numa tela não refletia na hora nas outras (ex.: remover na Lista Pessoal não atualizava o "✓" do Catálogo até esse recarregar sozinho). Não é um item da rodada de feedback original — foi um bug descoberto testando o item 6.
+
+**Causa raiz:** `CatalogoViewModel`, `ListaPessoalViewModel` e `DetalhesViewModel` têm cada um seu próprio `StateFlow` de estado, preenchido só quando o PRÓPRIO ViewModel executa uma ação. O dado de verdade (quem está "de olho") já era compartilhado — uma única instância de `GameService`/`MockGameRepository` via `AppContainer` — mas não era **observado reativamente**: nenhuma tela sabia quando outra mexia nele. Piora com a navegação por abas (`GameCountdownApp.kt`), que usa `saveState`/`restoreState` de propósito (preserva scroll ao trocar de aba) e, como efeito colateral, mantém viva a MESMA instância de cada ViewModel entre trocas de aba — então o estado "congelado" persistia até a tela ser recriada do zero.
+
+**Decisão de produto (Igor, entre duas opções apresentadas):**
+
+- **Estado compartilhado reativo**, em vez de recarregar ao voltar pra aba. Rejeitada a alternativa mais simples (`LaunchedEffect` recarregando ao focar a tela) porque não sincronizaria duas telas visíveis ao mesmo tempo (cenário futuro de tablet/split-screen) e é mais "remendo" que correção — o dado já é compartilhado, faltava só ser observado.
+
+**Por quê desta forma (implementação):**
+
+- **Callback síncrono, não `Flow`/coroutine.** Cogitou-se expor `watchedIds` como `StateFlow<Set<String>>` e cada ViewModel coletar via `viewModelScope.launch { ... }`. Descartado: nenhum ViewModel do projeto usa coroutines hoje, e os testes de ViewModel chamam `.value` direto, sem `TestDispatcher`/`Dispatchers.setMain(...)` configurado — introduzir coleta de Flow exigiria essa infra em toda a suíte só para um fix pontual. Optou-se por um padrão observer clássico e síncrono: `GameRepository`/`GameService` ganharam `observarMudancasWatched(callback): () -> Unit` — registra o callback e devolve uma função que CANCELA a inscrição. `MockGameRepository.setWatched` chama todos os callbacks inscritos, na hora, depois de mudar o conjunto.
+- **A inscrição sobe até o `GameService`** (não fica só no Repository) para respeitar a regra "a UI/ViewModel nunca fala com o Repository direto" — `GameServiceImpl.observarMudancasWatched` só repassa.
+- **Cada ViewModel se inscreve no `init`** (`gameService.observarMudancasWatched { carregarJogos() }` / `{ carregar() }`) e guarda a função de cancelamento recebida. As próprias ações que chamam `setWatched` (`alternarWatched`, `removerDaLista`, `desfazerRemocao`) **pararam de chamar o recarregamento explicitamente** — o callback já faz isso, para o ViewModel que iniciou a mudança e para qualquer outro vivo no momento.
+- **`onCleared()` cancela a inscrição**, evitando vazar um callback apontando pra um ViewModel destruído — por isso os três ViewModels agora sobrescrevem esse método (alargado para `public`, já que a classe base o declara `protected`, para os testes poderem chamá-lo diretamente).
+
+**Testes (11 novos):** `MockGameRepositoryTest` (+3: callback é chamado, cancelamento para de notificar, múltiplos inscritos funcionam) e `GameServiceImplTest` (+1: repasse ao Repository) cobrem a mecânica da inscrição. `CatalogoViewModelTest`, `ListaPessoalViewModelTest` e `DetalhesViewModelTest` (+2 cada) reproduzem o cenário exato do bug — mudar o watched **direto no fake, sem chamar nenhum método do ViewModel** — e verificam que o estado reflete sozinho; e que, após `onCleared()`, mudanças externas param de afetar o estado (a inscrição foi mesmo cancelada). Os fakes de `BuscaViewModelTest` e `CatalogoViewModelFactoryTest` só ganharam a implementação mecânica do método novo (não usam reatividade).
+
+### Arquivos alterados
+
+```
+data/repository/
+├── GameRepository.kt              ← ALTERADO: + observarMudancasWatched(callback): () -> Unit
+└── mock/MockGameRepository.kt     ← ALTERADO: lista de listeners; setWatched notifica todos
+
+data/service/
+├── GameService.kt                 ← ALTERADO: + observarMudancasWatched (mesmo contrato)
+└── GameServiceImpl.kt             ← ALTERADO: repassa ao Repository
+
+ui/catalogo/CatalogoViewModel.kt             ← ALTERADO: inscrição no init; onCleared cancela; alternarWatched não recarrega mais direto
+ui/lista_pessoal/ListaPessoalViewModel.kt    ← ALTERADO: idem (removerDaLista/desfazerRemocao)
+ui/detalhes/DetalhesViewModel.kt             ← ALTERADO: idem (alternarWatched)
+
+src/test/.../data/repository/MockGameRepositoryTest.kt     ← ALTERADO: +3 testes
+src/test/.../data/service/GameServiceImplTest.kt           ← ALTERADO: +1 teste + fake atualizado
+src/test/.../ui/catalogo/CatalogoViewModelTest.kt          ← ALTERADO: +2 testes + fake atualizado
+src/test/.../ui/lista_pessoal/ListaPessoalViewModelTest.kt ← ALTERADO: +2 testes + fake atualizado
+src/test/.../ui/detalhes/DetalhesViewModelTest.kt          ← ALTERADO: +2 testes + fake atualizado
+src/test/.../ui/busca/BuscaViewModelTest.kt                 ← ALTERADO: fake atualizado (mecânico)
+src/test/.../ui/catalogo/CatalogoViewModelFactoryTest.kt   ← ALTERADO: fake atualizado (mecânico)
+```
+
+**Estado:** bug corrigido e coberto por teste em todas as três telas afetadas. Seguem os itens da rodada original: 4 e 5 (busca), 8 (Detalhes) e 9 (ícone do app).
+
+---
+
 *Próximo passo: item 4 — a busca não deve focar o campo de texto automaticamente ao abrir a aba, só ao tocar nele.*

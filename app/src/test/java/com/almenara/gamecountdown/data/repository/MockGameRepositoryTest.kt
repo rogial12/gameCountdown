@@ -88,4 +88,45 @@ class MockGameRepositoryTest {
     fun `getWatchedGames retorna apenas jogos com isWatched true`() {
         assertTrue(repository.getWatchedGames().all { it.isWatched }) // todos os itens devem ter isWatched = true
     }
+
+    // verifica se o callback inscrito é chamado quando setWatched muda o conjunto de observados
+    // (é essa notificação que mantém Catálogo/Lista Pessoal/Detalhes sincronizados entre si)
+    @Test
+    fun `observarMudancasWatched chama o callback quando setWatched muda algo`() {
+        var chamadas = 0
+        repository.observarMudancasWatched { chamadas++ }
+
+        repository.setWatched("1", true)
+        assertEquals(1, chamadas)
+
+        repository.setWatched("1", false)
+        assertEquals(2, chamadas)
+    }
+
+    // verifica se a função de cancelamento devolvida realmente para de notificar aquele callback
+    @Test
+    fun `observarMudancasWatched cancelar inscricao para de notificar`() {
+        var chamadas = 0
+        val cancelar = repository.observarMudancasWatched { chamadas++ }
+
+        repository.setWatched("1", true) // ainda inscrito
+        cancelar()                       // cancela a inscrição
+        repository.setWatched("1", false) // não deveria mais notificar
+
+        assertEquals(1, chamadas)
+    }
+
+    // verifica se múltiplos inscritos são todos notificados (várias telas vivas ao mesmo tempo)
+    @Test
+    fun `observarMudancasWatched notifica todos os inscritos`() {
+        var chamadasA = 0
+        var chamadasB = 0
+        repository.observarMudancasWatched { chamadasA++ }
+        repository.observarMudancasWatched { chamadasB++ }
+
+        repository.setWatched("1", true)
+
+        assertEquals(1, chamadasA)
+        assertEquals(1, chamadasB)
+    }
 }

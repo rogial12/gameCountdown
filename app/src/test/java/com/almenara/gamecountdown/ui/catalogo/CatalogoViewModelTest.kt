@@ -17,6 +17,7 @@ import org.junit.Test                // marca um método como caso de teste
 private class FakeGameService(private val jogosBase: List<Game>) : GameService {
 
     private val watchedIds = mutableSetOf<String>() // ids marcados como "na lista pessoal" dentro do fake
+    private val listenersWatched = mutableListOf<() -> Unit>() // callbacks inscritos via observarMudancasWatched
     var ultimoFiltro: FiltroCatalogo? = null         // guarda o último filtro recebido, pra inspecionar no teste
     var ultimaOrdenacao: CriterioOrdenacao? = null   // guarda a última ordenação recebida, pra inspecionar no teste
     var chamadasSetWatched = 0                       // conta quantas vezes setWatched foi efetivamente chamado
@@ -39,6 +40,12 @@ private class FakeGameService(private val jogosBase: List<Game>) : GameService {
     override fun setWatched(id: String, watched: Boolean) {
         chamadasSetWatched++
         if (watched) watchedIds.add(id) else watchedIds.remove(id)
+        listenersWatched.forEach { it() }
+    }
+
+    override fun observarMudancasWatched(callback: () -> Unit): () -> Unit {
+        listenersWatched.add(callback)
+        return { listenersWatched.remove(callback) }
     }
 
     // devolve um número de dias derivado do id do jogo (ex.: id "1" -> 1 dia) —
@@ -141,5 +148,26 @@ class CatalogoViewModelTest {
 
         assertEquals(0, fakeService.chamadasSetWatched)
         assertNull(viewModel.uiState.value.mensagemErro) // e não deve gerar erro nenhum
+    }
+
+    // reproduz o bug relatado por Igor: se o watched mudar por FORA deste ViewModel (ex.: a Lista Pessoal,
+    // que compartilha a mesma instância de GameService via AppContainer), o Catálogo deve recarregar sozinho
+    @Test
+    fun `catalogo recarrega sozinho quando outra tela muda o watched`() {
+        fakeService.setWatched("1", true) // simula outra tela mexendo no MESMO service, sem passar pelo ViewModel
+
+        val jogo1 = viewModel.uiState.value.jogos.find { it.game.id == "1" }
+        assertTrue(jogo1?.game?.isWatched == true) // o Catálogo já reflete a mudança, sem precisar de nova ação
+    }
+
+    // onCleared deve cancelar a inscrição — depois disso, mudanças externas não devem mais mexer no estado
+    @Test
+    fun `onCleared cancela a inscricao no service`() {
+        viewModel.onCleared()
+
+        fakeService.setWatched("1", true) // mudança externa após o ViewModel ter sido destruído
+
+        val jogo1 = viewModel.uiState.value.jogos.find { it.game.id == "1" }
+        assertTrue(jogo1?.game?.isWatched == false) // estado ficou congelado; não recarregou mais
     }
 }

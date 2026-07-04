@@ -53,4 +53,9 @@ interface GameService {
     fun setWatched(id: String, watched: Boolean)  // adiciona ou remove um jogo da lista pessoal
 
     fun getDaysUntilRelease(game: Game): Long      // calcula quantos dias faltam para o lançamento (o "countdown")
+
+    // registra um callback chamado toda vez que setWatched muda quem está "de olho", em QUALQUER tela.
+    // é o que mantém Catálogo, Lista Pessoal e Detalhes sincronizados entre si em tempo real (repassa ao Repository,
+    // que é quem de fato guarda o estado compartilhado). Devolve a função de cancelamento da inscrição.
+    fun observarMudancasWatched(callback: () -> Unit): () -> Unit
 }

@@ -11,4 +11,10 @@ interface GameRepository {
     fun searchGames(query: String): List<Game>    // retorna jogos cujo título contém o texto da busca
     fun getWatchedGames(): List<Game>             // retorna apenas os jogos marcados na lista pessoal do usuário
     fun setWatched(id: String, watched: Boolean)  // true adiciona à lista pessoal; false remove
+
+    // registra um callback chamado toda vez que setWatched muda quem está "de olho" — não importa qual tela chamou.
+    // é o que permite Catálogo, Lista Pessoal e Detalhes ficarem sincronizados entre si, já que todos compartilham
+    // a mesma instância de Repository (via AppContainer). Devolve uma função que CANCELA essa inscrição;
+    // quem se inscreve deve chamá-la ao ser destruído, para não vazar callbacks de telas que não existem mais.
+    fun observarMudancasWatched(callback: () -> Unit): () -> Unit
 }

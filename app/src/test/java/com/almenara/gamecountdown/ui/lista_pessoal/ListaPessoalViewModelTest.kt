@@ -18,6 +18,7 @@ private class FakeGameService(
 ) : GameService {
 
     private val watched = watchedInicial.toMutableSet() // conjunto mutável de ids observados
+    private val listenersWatched = mutableListOf<() -> Unit>() // callbacks inscritos via observarMudancasWatched
 
     // getGames não é usado por esta tela; devolve o catálogo como está só para cumprir o contrato
     override fun getGames(filtro: FiltroCatalogo, ordenacao: CriterioOrdenacao): List<Game> = jogos
@@ -43,6 +44,12 @@ private class FakeGameService(
 
     override fun setWatched(id: String, watched: Boolean) {
         if (watched) this.watched.add(id) else this.watched.remove(id)
+        listenersWatched.forEach { it() }
+    }
+
+    override fun observarMudancasWatched(callback: () -> Unit): () -> Unit {
+        listenersWatched.add(callback)
+        return { listenersWatched.remove(callback) }
     }
 
     override fun getDaysUntilRelease(game: Game): Long = game.id.toLong() // dias derivados do id, para verificar pareamento
@@ -123,6 +130,27 @@ class ListaPessoalViewModelTest {
         val estado = viewModel.uiState.value
         assertEquals(CriterioOrdenacao.MAIS_AGUARDADOS, estado.ordenacao)
         assertEquals(listOf("2", "3"), estado.jogos.map { it.game.id }) // scores 90 e 50, maior primeiro
+    }
+
+    // reproduz o bug relatado por Igor: se o watched mudar por FORA deste ViewModel (ex.: o Catálogo,
+    // que compartilha a mesma instância de GameService via AppContainer), a Lista Pessoal deve recarregar sozinha
+    @Test
+    fun `lista pessoal recarrega sozinha quando outra tela muda o watched`() {
+        fakeService.setWatched("1", true) // simula outra tela adicionando "1", sem passar pelo ViewModel
+
+        val estado = viewModel.uiState.value
+        assertEquals(setOf("1", "2", "3"), estado.jogos.map { it.game.id }.toSet()) // "1" já aparece aqui
+    }
+
+    // onCleared deve cancelar a inscrição — depois disso, mudanças externas não devem mais mexer no estado
+    @Test
+    fun `onCleared cancela a inscricao no service`() {
+        viewModel.onCleared()
+
+        fakeService.setWatched("2", false) // mudança externa após o ViewModel ter sido destruído
+
+        val estado = viewModel.uiState.value
+        assertEquals(listOf("2", "3"), estado.jogos.map { it.game.id }) // estado ficou congelado; não recarregou
     }
 }
 

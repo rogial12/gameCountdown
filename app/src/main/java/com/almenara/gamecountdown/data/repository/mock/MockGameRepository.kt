@@ -14,6 +14,10 @@ class MockGameRepository : GameRepository { // : GameRepository significa que es
     // pré-populado com "2" e "4" para simular um usuário que já usou o app
     private val watchedIds = mutableSetOf("2", "4")
 
+    // callbacks inscritos via observarMudancasWatched — um por tela (ViewModel) viva que quer saber
+    // quando o conjunto de "de olho" muda, mesmo que a mudança tenha vindo de OUTRA tela
+    private val listenersWatched = mutableListOf<() -> Unit>()
+
     // lista imutável de jogos fictícios que representa o catálogo
     // listOf: cria uma lista que não pode ser alterada após a criação
     private val games = listOf(
@@ -152,5 +156,12 @@ class MockGameRepository : GameRepository { // : GameRepository significa que es
     // watched = false → .remove() retira o ID do conjunto
     override fun setWatched(id: String, watched: Boolean) {
         if (watched) watchedIds.add(id) else watchedIds.remove(id)
+        listenersWatched.forEach { it() } // avisa todos os inscritos (todas as telas vivas) que o conjunto mudou
+    }
+
+    // adiciona o callback à lista de inscritos e devolve uma função que o remove de lá (a "cancelar inscrição")
+    override fun observarMudancasWatched(callback: () -> Unit): () -> Unit {
+        listenersWatched.add(callback)
+        return { listenersWatched.remove(callback) }
     }
 }

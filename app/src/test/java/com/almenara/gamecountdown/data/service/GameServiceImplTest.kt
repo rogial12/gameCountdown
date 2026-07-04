@@ -49,6 +49,7 @@ private class FakeGameRepository(hoje: LocalDate) : GameRepository {
     )
 
     private val watchedIds = mutableSetOf<String>() // conjunto simples; começa vazio neste fake
+    private val listenersWatched = mutableListOf<() -> Unit>() // callbacks inscritos via observarMudancasWatched
 
     override fun getGames(): List<Game> = games.map { it.copy(isWatched = it.id in watchedIds) }
     override fun getGameById(id: String): Game? = games.find { it.id == id }
@@ -56,6 +57,12 @@ private class FakeGameRepository(hoje: LocalDate) : GameRepository {
     override fun getWatchedGames(): List<Game> = games.filter { it.id in watchedIds }
     override fun setWatched(id: String, watched: Boolean) {
         if (watched) watchedIds.add(id) else watchedIds.remove(id)
+        listenersWatched.forEach { it() }
+    }
+
+    override fun observarMudancasWatched(callback: () -> Unit): () -> Unit {
+        listenersWatched.add(callback)
+        return { listenersWatched.remove(callback) }
     }
 }
 
@@ -182,5 +189,19 @@ class GameServiceImplTest {
 
         val ids = service.getWatchedGames(ordenacao = CriterioOrdenacao.MAIS_AGUARDADOS).map { it.id }
         assertEquals(listOf("2", "4"), ids) // maior score primeiro
+    }
+
+    // observarMudancasWatched deve repassar ao Repository (o Service não implementa a notificação sozinho)
+    @Test
+    fun `observarMudancasWatched repassa ao repository`() {
+        var chamadas = 0
+        val cancelar = service.observarMudancasWatched { chamadas++ }
+
+        service.setWatched("1", true)
+        assertEquals(1, chamadas)
+
+        cancelar()
+        service.setWatched("1", false)
+        assertEquals(1, chamadas) // não deve mais notificar após cancelar
     }
 }

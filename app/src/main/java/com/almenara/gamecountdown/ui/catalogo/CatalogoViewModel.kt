@@ -21,6 +21,11 @@ class CatalogoViewModel(
     // estado público, somente leitura — é isso que a tela (Compose) observa via collectAsState()
     val uiState: StateFlow<CatalogoUiState> = _uiState.asStateFlow()
 
+    // inscreve este ViewModel para recarregar sozinho sempre que QUALQUER tela mudar quem está "de olho"
+    // (ex.: um jogo removido na Lista Pessoal). Sem isso, o Catálogo só saberia da mudança na próxima vez
+    // que ELE MESMO chamasse carregarJogos() — o bug de dessincronia relatado por Igor.
+    private val cancelarInscricaoWatched = gameService.observarMudancasWatched { carregarJogos() }
+
     // bloco de inicialização: roda assim que o ViewModel é criado, carregando o catálogo inicial
     init {
         carregarJogos()
@@ -49,10 +54,19 @@ class CatalogoViewModel(
         carregarJogos()
     }
 
-    // alterna o jogo entre "na lista pessoal" e "fora dela", e recarrega a lista pra refletir a mudança na UI
+    // alterna o jogo entre "na lista pessoal" e "fora dela"; NÃO chama carregarJogos() aqui de propósito —
+    // setWatched já dispara a inscrição registrada acima, que recarrega este e qualquer outro ViewModel vivo
     fun alternarWatched(id: String) {
         val jogo = gameService.getGameById(id) ?: return // se o id não existir, não faz nada
         gameService.setWatched(id, !jogo.isWatched) // inverte o estado atual de "observado"
-        carregarJogos()
+    }
+
+    // cancela a inscrição no Service quando a tela é destruída, para não vazar um callback apontando
+    // para um ViewModel que não existe mais
+    // 'public' explícito: alarga a visibilidade de 'onCleared' (protected na classe base) para o teste poder
+    // chamá-lo diretamente e verificar que a inscrição é mesmo cancelada
+    public override fun onCleared() {
+        cancelarInscricaoWatched()
+        super.onCleared()
     }
 }

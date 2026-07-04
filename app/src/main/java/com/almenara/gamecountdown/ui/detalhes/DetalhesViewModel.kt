@@ -20,6 +20,10 @@ class DetalhesViewModel(
     // estado público, somente leitura — é isso que a tela (Compose) observa via collectAsState()
     val uiState: StateFlow<DetalhesUiState> = _uiState.asStateFlow()
 
+    // inscreve este ViewModel para recarregar sozinho sempre que QUALQUER tela mudar quem está "de olho"
+    // (ex.: o jogo aberto aqui foi removido pela Lista Pessoal enquanto esta tela ficava em segundo plano)
+    private val cancelarInscricaoWatched = gameService.observarMudancasWatched { carregar() }
+
     // ao ser criado, já carrega o jogo pedido
     init {
         carregar()
@@ -32,10 +36,19 @@ class DetalhesViewModel(
         _uiState.update { it.copy(game = game, dias = dias) }
     }
 
-    // alterna o jogo entre "de olho" e "fora da lista" e recarrega, refletindo o novo isWatched na tela
+    // alterna o jogo entre "de olho" e "fora da lista"; NÃO chama carregar() aqui de propósito —
+    // setWatched já dispara a inscrição registrada acima, que recarrega este e qualquer outro ViewModel vivo
     fun alternarWatched() {
         val atual = _uiState.value.game ?: return   // se não há jogo carregado, não faz nada
         gameService.setWatched(atual.id, !atual.isWatched) // inverte o estado atual de observado
-        carregar()                                   // recarrega para o estado refletir a mudança
+    }
+
+    // cancela a inscrição no Service quando a tela é destruída, para não vazar um callback apontando
+    // para um ViewModel que não existe mais
+    // 'public' explícito: alarga a visibilidade de 'onCleared' (protected na classe base) para o teste poder
+    // chamá-lo diretamente e verificar que a inscrição é mesmo cancelada
+    public override fun onCleared() {
+        cancelarInscricaoWatched()
+        super.onCleared()
     }
 }
