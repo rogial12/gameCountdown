@@ -9,7 +9,12 @@ import androidx.compose.foundation.layout.fillMaxSize // faz um componente ocupa
 import androidx.compose.foundation.layout.padding // aplica espaçamento (usado com o padding do Scaffold)
 import androidx.compose.foundation.lazy.LazyColumn // lista vertical que só compõe os itens visíveis (eficiente para rolagem)
 import androidx.compose.foundation.lazy.items // gera um item da LazyColumn para cada elemento de uma lista
+import androidx.compose.material.icons.Icons // ponto de acesso aos ícones do Material
+import androidx.compose.material.icons.automirrored.filled.List // ícone (lista) para voltar da grade à lista
+import androidx.compose.material.icons.filled.DateRange // ícone (calendário) para alternar para a grade
 import androidx.compose.material3.ExperimentalMaterial3Api // a TopAppBar ainda é marcada como API experimental do Material 3
+import androidx.compose.material3.Icon // desenha um ícone vetorial
+import androidx.compose.material3.IconButton // botão clicável que contém só um ícone (o alternador de visão)
 import androidx.compose.material3.MaterialTheme // acesso ao tema atual (cores, tipografia)
 import androidx.compose.material3.Scaffold // estrutura básica de tela do Material 3 (barra de topo + conteúdo)
 import androidx.compose.material3.Text // componente que desenha um texto na tela
@@ -17,6 +22,9 @@ import androidx.compose.material3.TopAppBar // barra de título no topo da tela
 import androidx.compose.runtime.Composable // anotação que marca uma função como componente de UI do Compose
 import androidx.compose.runtime.collectAsState // observa um StateFlow e recompõe a UI quando o estado muda
 import androidx.compose.runtime.getValue // habilita ler o estado observado com 'by' (delegação)
+import androidx.compose.runtime.mutableStateOf // cria o estado local do modo de visão (lista x grade)
+import androidx.compose.runtime.saveable.rememberSaveable // preserva o modo de visão mesmo após rotação de tela
+import androidx.compose.runtime.setValue // habilita escrever no estado com 'by' (delegação)
 import androidx.compose.ui.Alignment // define alinhamento (centralizar a mensagem de lista vazia)
 import androidx.compose.ui.Modifier // objeto que descreve ajustes de layout/aparência
 import androidx.compose.ui.tooling.preview.Preview // permite visualizar o componente no editor sem rodar o app
@@ -26,6 +34,7 @@ import com.almenara.gamecountdown.data.model.Genre // enum de gêneros; usado no
 import com.almenara.gamecountdown.data.model.Platform // enum de plataformas; usado no @Preview
 import com.almenara.gamecountdown.data.service.CriterioOrdenacao // enum de ordenação; parte da assinatura do conteúdo
 import com.almenara.gamecountdown.data.service.FiltroCatalogo // agrupador de filtros; parte da assinatura do conteúdo
+import com.almenara.gamecountdown.ui.comum.Calendario // visão de grade mensal (Passo 20/3b)
 import com.almenara.gamecountdown.ui.comum.GameCard // componente que exibe um jogo na lista (Passo 8)
 
 // CatalogoScreen: a tela de Catálogo "com estado" — é o ponto onde a UI se conecta ao ViewModel.
@@ -41,18 +50,34 @@ fun CatalogoScreen(
     // observa o StateFlow do ViewModel: sempre que o estado muda, esta função é recomposta com o novo valor
     val uiState by viewModel.uiState.collectAsState()
 
+    // modo de visão: false = lista (padrão), true = grade de calendário. rememberSaveable sobrevive à rotação.
+    var modoGrade by rememberSaveable { mutableStateOf(false) }
+
     // Scaffold monta a estrutura da tela: barra de topo fixa + área de conteúdo abaixo dela
     Scaffold(
         modifier = modifier,
         // zera os insets aqui porque esta tela roda dentro do Scaffold externo (GameCountdownApp), que já os aplica
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            TopAppBar(title = { Text("Catálogo") }) // barra com o título da tela
+            TopAppBar(
+                title = { Text("Catálogo") }, // barra com o título da tela
+                actions = {
+                    // botão que alterna entre lista e grade de calendário (no canto superior direito)
+                    IconButton(onClick = { modoGrade = !modoGrade }) {
+                        if (modoGrade) {
+                            Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Ver em lista")
+                        } else {
+                            Icon(Icons.Filled.DateRange, contentDescription = "Ver em calendário")
+                        }
+                    }
+                }
+            )
         }
     ) { innerPadding ->
         // innerPadding é o espaço reservado pela barra de topo; é repassado ao conteúdo para ele não ficar atrás dela
         CatalogoConteudo(
             jogos = uiState.jogos,                          // lista de jogos (com dias) a exibir
+            modoGrade = modoGrade,                          // se true, mostra a grade de calendário em vez da lista
             filtro = uiState.filtro,                        // filtro atual, para a FilterBar refletir o estado
             ordenacao = uiState.ordenacao,                  // ordenação atual, idem
             onFiltroChange = viewModel::aplicarFiltro,      // ao mudar um filtro, chama o método do ViewModel
@@ -68,6 +93,7 @@ fun CatalogoScreen(
 @Composable
 private fun CatalogoConteudo(
     jogos: List<JogoCatalogo>,                       // jogos já filtrados/ordenados, com os dias
+    modoGrade: Boolean,                              // true = grade de calendário; false = lista
     filtro: FiltroCatalogo,                          // filtro atual (para a FilterBar)
     ordenacao: CriterioOrdenacao,                    // ordenação atual (para a FilterBar)
     onFiltroChange: (FiltroCatalogo) -> Unit,        // emite o novo filtro
@@ -75,9 +101,9 @@ private fun CatalogoConteudo(
     onJogoClick: (String) -> Unit,                   // emite o id do jogo tocado
     modifier: Modifier = Modifier                    // ajustes externos (aqui: o padding da barra de topo)
 ) {
-    // Column empilha a barra de filtros no topo e, abaixo, a lista de jogos (ou a mensagem de vazio)
+    // Column empilha a barra de filtros no topo e, abaixo, a visão escolhida (grade ou lista)
     Column(modifier = modifier) {
-        // barra de filtros/ordenação; recebe o estado atual e devolve as mudanças pelos callbacks
+        // barra de filtros/ordenação; vale para as DUAS visões (o calendário também respeita os filtros)
         FilterBar(
             filtro = filtro,
             ordenacao = ordenacao,
@@ -85,30 +111,40 @@ private fun CatalogoConteudo(
             onOrdenacaoChange = onOrdenacaoChange
         )
 
-        // se nenhum jogo passou pelos filtros, mostra uma mensagem centralizada em vez de uma lista vazia
-        if (jogos.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),      // ocupa todo o espaço restante abaixo da barra
-                contentAlignment = Alignment.Center     // centraliza a mensagem
-            ) {
-                Text(
-                    text = "Nenhum jogo encontrado",              // texto do estado vazio
-                    style = MaterialTheme.typography.bodyLarge    // estilo de corpo de texto
+        when {
+            // visão em grade: passa os jogos (só o Game, sem os dias) para o Calendário
+            modoGrade -> {
+                Calendario(
+                    jogos = jogos.map { it.game },
+                    onJogoClick = onJogoClick
                 )
             }
-        } else {
-            // LazyColumn: desenha só os cards visíveis na tela, reaproveitando os demais conforme rola (eficiente)
-            LazyColumn(
-                contentPadding = PaddingValues(12.dp),              // respiro ao redor da lista
-                verticalArrangement = Arrangement.spacedBy(12.dp)   // espaço fixo entre os cards
-            ) {
-                // um GameCard por jogo; a 'key' pelo id ajuda o Compose a reaproveitar itens corretamente ao reordenar/filtrar
-                items(jogos, key = { it.game.id }) { item ->
-                    GameCard(
-                        game = item.game,                          // o jogo a exibir
-                        dias = item.dias,                          // o countdown já calculado (vindo do estado)
-                        onClick = { onJogoClick(item.game.id) }    // ao tocar, avisa com o id do jogo
+            // visão em lista, sem nada: mostra a mensagem de vazio
+            jogos.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),      // ocupa todo o espaço restante abaixo da barra
+                    contentAlignment = Alignment.Center     // centraliza a mensagem
+                ) {
+                    Text(
+                        text = "Nenhum jogo encontrado",              // texto do estado vazio
+                        style = MaterialTheme.typography.bodyLarge    // estilo de corpo de texto
                     )
+                }
+            }
+            // visão em lista com jogos: a LazyColumn de cards
+            else -> {
+                LazyColumn(
+                    contentPadding = PaddingValues(12.dp),              // respiro ao redor da lista
+                    verticalArrangement = Arrangement.spacedBy(12.dp)   // espaço fixo entre os cards
+                ) {
+                    // um GameCard por jogo; a 'key' pelo id ajuda o Compose a reaproveitar itens ao reordenar/filtrar
+                    items(jogos, key = { it.game.id }) { item ->
+                        GameCard(
+                            game = item.game,                          // o jogo a exibir
+                            dias = item.dias,                          // o countdown já calculado (vindo do estado)
+                            onClick = { onJogoClick(item.game.id) }    // ao tocar, avisa com o id do jogo
+                        )
+                    }
                 }
             }
         }
@@ -142,6 +178,7 @@ private fun CatalogoConteudoPreview() {
     )
     CatalogoConteudo(
         jogos = exemplos,
+        modoGrade = false, // preview na visão de lista
         filtro = FiltroCatalogo(),
         ordenacao = CriterioOrdenacao.MAIS_PROXIMOS,
         onFiltroChange = {},

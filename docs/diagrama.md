@@ -739,3 +739,36 @@ src/test/ui/comum/
 ---
 
 *Próximo passo: Calendário 3b — o componente de grade mensal (cabeçalho do mês com setas ◀ ▶, semana começando no domingo, círculos de capa via `GameCover` nos dias com lançamento, selo "+N", dia atual destacado) e o bottom sheet que abre ao tocar um dia. As decisões visuais serão conferidas por screenshot no aparelho.*
+
+---
+
+## Passo 21 — Calendário 3b: a grade + integração no Catálogo (Fase 2)
+
+**O que foi feito:** O componente visual `Calendario` (grade mensal + bottom sheet do dia) e sua integração na tela de Catálogo (botão que alterna lista ↔ grade). Verificado no aparelho por screenshot: a grade mostra as capas reais nos dias com lançamento, o dia atual destacado, e o bottom sheet abre com os jogos do dia tocado. A integração na Lista Pessoal e eventuais ajustes visuais ficam para o Passo 3c.
+
+**Nota de fatiamento:** o plano era 3b = só o componente e 3c = integração nas duas telas. Para conseguir **verificar por screenshot** (não dá para ver o `@Preview` do Android Studio a partir daqui), a integração no **Catálogo** foi adiantada para este passo — assim a grade pôde ser vista funcionando de verdade. Sobra para 3c: replicar o toggle na Lista Pessoal e ajustes visuais.
+
+**Por quê desta forma (implementação):**
+
+- **`Calendario` é um componente de UI autocontido.** Recebe a lista de jogos já filtrada pela tela + a data de hoje, e cuida de tudo: guarda o mês exibido e o dia selecionado (estado de UI, via `remember`), agrupa os jogos com a função pura `jogosPorDiaDoMes` (Passo 20) e desenha a grade. As telas só fornecem os dados e um `onJogoClick` — nenhuma lógica de calendário vaza para elas.
+- **A grade é montada "na mão" com `Row`/`Column`** (o Compose não traz um calendário pronto): calcula o deslocamento do dia 1 (domingo = 0), preenche as células vazias no começo/fim e divide em semanas de 7. Cada célula é quadrada (`aspectRatio(1f)`).
+- **O dia com lançamento** mostra a capa do jogo de maior interesse (o primeiro da lista já ordenada) recortada em círculo (`GameCover` + `CircleShape`), com o número do dia numa pílula escura para legibilidade sobre a imagem, e o selo "+N" quando há mais de um lançamento. Dias sem lançamento mostram só o número, apagado e sem interação. **Hoje** ganha uma moldura (só quando o mês exibido é o corrente).
+- **Bottom sheet do dia** (`ModalBottomSheet`): ao tocar um dia com jogos, sobe um painel com o título ("10 de Julho") e a lista de `GameCard`s daquele dia; tocar um card fecha o sheet e navega para os Detalhes. Os dias do countdown de cada card são calculados ali com `ChronoUnit.DAYS.between(hoje, data)`.
+- **Toggle no Catálogo:** um botão no canto superior direito alterna `modoGrade` (guardado com `rememberSaveable`, sobrevive à rotação). A `FilterBar` continua visível nas duas visões — o calendário respeita os mesmos filtros de gênero/plataforma (decisão de produto). O `CatalogoConteudo` virou um `when` de três casos: grade, lista vazia, lista com jogos.
+
+**Decisões visuais (validadas por screenshot, podem ser ajustadas em 3c):** número do dia numa pílula escura sobreposta à capa; "hoje" como moldura circular; setas de mês no cabeçalho; nomes de mês em português via um array local (`mesesPt`). Como é apresentação pura (não regra de negócio), não há teste unitário próprio — a lógica que precisava de teste (o agrupamento) já foi coberta no Passo 20. A verificação foi visual, no aparelho.
+
+### Arquivos criados/alterados
+
+```
+ui/comum/
+└── Calendario.kt   ← NOVO: grade mensal + bottom sheet do dia (usa jogosPorDiaDoMes e GameCover)
+
+ui/catalogo/CatalogoScreen.kt  ← ALTERADO: botão de alternar lista↔grade; CatalogoConteudo com a visão de grade
+```
+
+**Estado:** o Calendário funciona no Catálogo (grade + bottom sheet), verificado no aparelho. Falta o Passo 3c: o mesmo toggle na Lista Pessoal (o Calendário dela mostra só os "de olho") e ajustes visuais que Igor queira.
+
+---
+
+*Próximo passo: Calendário 3c — integrar o toggle lista↔grade na Lista Pessoal (reusando o componente `Calendario`, alimentado só com os jogos observados) e aplicar eventuais ajustes visuais decididos com Igor após ver a grade no aparelho.*
