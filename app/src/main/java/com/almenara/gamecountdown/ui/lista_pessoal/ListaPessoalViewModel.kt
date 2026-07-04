@@ -37,4 +37,10 @@ class ListaPessoalViewModel(
         gameService.setWatched(id, false) // marca como não-observado; se já não estava, a operação é inofensiva
         carregar()
     }
+
+    // desfaz uma remoção: marca o jogo de novo como "de olho" e recarrega — usado pela ação "Desfazer" do snackbar
+    fun desfazerRemocao(id: String) {
+        gameService.setWatched(id, true) // volta a marcar como observado
+        carregar()
+    }
 }

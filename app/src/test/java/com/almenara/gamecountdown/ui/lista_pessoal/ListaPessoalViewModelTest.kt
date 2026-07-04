@@ -82,6 +82,16 @@ class ListaPessoalViewModelTest {
         val estado = viewModel.uiState.value
         assertEquals(listOf("2", "3"), estado.jogos.map { it.game.id }) // lista intacta
     }
+
+    // desfazer uma remoção deve trazer o jogo de volta para a lista (ação "Desfazer" do snackbar)
+    @Test
+    fun `desfazerRemocao readiciona o jogo removido`() {
+        viewModel.removerDaLista("2")     // sai da lista
+        viewModel.desfazerRemocao("2")    // e volta
+
+        val estado = viewModel.uiState.value
+        assertEquals(listOf("2", "3"), estado.jogos.map { it.game.id }) // "2" de volta; ordem preservada
+    }
 }
 
 // função de apoio: cria um Game fictício preenchendo só o essencial para estes testes

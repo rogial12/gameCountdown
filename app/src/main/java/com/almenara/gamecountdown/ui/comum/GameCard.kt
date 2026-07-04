@@ -37,7 +37,8 @@ fun GameCard(
     game: Game,                     // o jogo a exibir (título, plataformas, preços, capa...)
     dias: Long,                     // dias até o lançamento, calculados fora (via GameService.getDaysUntilRelease)
     onClick: () -> Unit,            // função chamada quando o card é tocado (ex.: abrir os detalhes do jogo)
-    modifier: Modifier = Modifier   // ajustes vindos de quem chama (ex.: espaçamento externo); padrão = nenhum ajuste
+    modifier: Modifier = Modifier,  // ajustes vindos de quem chama (ex.: espaçamento externo); padrão = nenhum ajuste
+    trailing: (@Composable () -> Unit)? = null // conteúdo opcional à direita (ex.: o switch de "de olho"); null = nada
 ) {
     // Card: superfície clicável que agrupa todo o conteúdo do item, com elevação e cantos arredondados do tema
     Card(
@@ -67,7 +68,7 @@ fun GameCard(
 
             // Column: empilha verticalmente título, plataformas e a linha de preço/countdown
             Column(
-                modifier = Modifier.fillMaxWidth(),                // ocupa o restante da largura ao lado da capa
+                modifier = Modifier.weight(1f),                    // ocupa o espaço restante entre a capa e o 'trailing'
                 verticalArrangement = Arrangement.spacedBy(6.dp)   // espaço fixo entre título, plataformas e preço/countdown
             ) {
                 // Título do jogo — no máximo 2 linhas; se passar, corta com reticências para não quebrar o layout
@@ -97,6 +98,12 @@ fun GameCard(
                     CountdownBadge(dias = dias)                                  // chip de countdown (Passo 7)
                     PriceTag(priceUsd = game.priceUsd, priceBrl = game.priceBrl) // chip de preço (Passo 6)
                 }
+            }
+
+            // conteúdo opcional à direita da coluna de infos (ex.: o AddToListSwitch da Lista Pessoal)
+            // só é desenhado quando quem usa o card fornece um 'trailing'; no Catálogo fica ausente
+            if (trailing != null) {
+                trailing()
             }
         }
     }

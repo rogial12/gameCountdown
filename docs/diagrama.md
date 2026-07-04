@@ -469,3 +469,43 @@ src/test/ui/lista_pessoal/
 ---
 
 *Próximo passo: Lista Pessoal, parte 2 — o componente `AddToListSwitch`, um slot opcional no `GameCard` e a `ListaPessoalScreen`. A navegação que torna a tela alcançável é um passo à parte.*
+
+---
+
+## Passo 14 — Lista Pessoal, parte 2: UI (Fase 2)
+
+**O que foi feito:** A UI da Lista Pessoal — o componente `AddToListSwitch` (o controle de "de olho" que estava adiado desde o Passo 8), um slot opcional `trailing` no `GameCard` para acomodá-lo, e a `ListaPessoalScreen`, que lista os jogos observados e permite removê-los com um snackbar de "Desfazer". A feature de Lista Pessoal está completa em lógica e UI; falta apenas a navegação para torná-la alcançável no app.
+
+**Decisão de produto tomada por Igor:**
+
+- **Remoção com "Desfazer" (snackbar), não imediata e silenciosa.** Opções consideradas: (a) remover na hora sem desfazer; (b) remover na hora, mas com um snackbar "Removido · Desfazer" por alguns segundos. Escolheu-se **(b)**, mais seguro contra toques acidentais (o switch fica sempre ligado nesta tela, então um toque já remove). Para dar suporte, o `ListaPessoalViewModel` ganhou `desfazerRemocao(id)` (re-marca o jogo), com teste.
+
+**Por quê desta forma (implementação):**
+
+- **`AddToListSwitch` é genérico e reutilizável.** Recebe `marcado` + `onMarcarChange` e nada mais — não sabe se está adicionando ou removendo. Na Lista Pessoal ele começa sempre ligado e, ao desligar, dispara a remoção; no Catálogo, no futuro, o mesmo componente servirá para adicionar. É um `Switch` do Material 3 puro (sem ícone, para não depender do pacote `material-icons-extended`).
+- **`GameCard` ganhou um slot `trailing` opcional** (`(@Composable () -> Unit)? = null`). O Catálogo não passa nada e continua idêntico; a Lista Pessoal passa o `AddToListSwitch`. A coluna de infos do card passou de `fillMaxWidth` para `weight(1f)`, abrindo espaço à direita para o slot — uma mudança que, além de habilitar o slot, é mais correta para uma `Row` com elemento à direita. Manter o card genérico (um slot, em vez de um switch fixo) evita que o componente compartilhado saiba de "watched".
+- **O snackbar é assíncrono.** Exibir um snackbar e esperar a resposta ("Desfazer" ou dispensa) é uma operação suspensa, então roda num `rememberCoroutineScope()` disparado no callback de remoção. Se o resultado for `ActionPerformed`, chama `desfazerRemocao`. O `SnackbarHost` fica no `Scaffold`.
+- **Tela com estado + conteúdo sem estado**, como no Catálogo: `ListaPessoalScreen(viewModel)` observa e orquestra o snackbar; `ListaPessoalConteudo(...)` só desenha (lista ou estado vazio "Você ainda não está de olho em nenhum jogo") e é previewável.
+
+**Reachability:** a `ListaPessoalScreen` **ainda não é alcançável** no app — o `MainActivity` exibe só o Catálogo. A tela está pronta e previewável; ligá-la de verdade depende da navegação (próximo passo). Optou-se por não criar nenhuma ligação provisória no `MainActivity` para não gerar código descartável.
+
+### Arquivos criados/alterados
+
+```
+ui/comum/
+├── AddToListSwitch.kt   ← NOVO: switch de "de olho", genérico (marcado + onMarcarChange)
+└── GameCard.kt          ← ALTERADO: slot opcional 'trailing'; Column passou a weight(1f)
+
+ui/lista_pessoal/
+├── ListaPessoalViewModel.kt   ← ALTERADO: + desfazerRemocao(id) para a ação "Desfazer"
+└── ListaPessoalScreen.kt      ← NOVO: Scaffold + LazyColumn de GameCard com switch + snackbar de desfazer
+
+src/test/ui/lista_pessoal/
+└── ListaPessoalViewModelTest.kt  ← ALTERADO: +1 teste (desfazerRemocao); total 4
+```
+
+**Estado das features:** Catálogo e Lista Pessoal estão completas (lógica + UI + testes). O `AddToListSwitch`, o slot do `GameCard` e o `AppContainer` (dado compartilhado) já preparam o terreno para a navegação. Continua pendente a tela de **Detalhes** (com `DetalhesViewModel`) e, sobretudo, a **navegação** que costura Catálogo, Lista Pessoal e Detalhes.
+
+---
+
+*Próximo passo: a definir com Igor — a **navegação** (que finalmente conecta as telas e torna a Lista Pessoal alcançável, provavelmente com a barra inferior Catálogo/Lista Pessoal/Calendário/Busca que Igor mencionou) ou a tela de **Detalhes**.*
