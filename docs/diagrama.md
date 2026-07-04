@@ -548,3 +548,36 @@ src/test/ui/detalhes/
 ---
 
 *Próximo passo: Detalhes, parte 2 — a `DetalhesScreen` (capa, infos, sinopse, `AddToListSwitch` e o botão de trailer que abre o YouTube). Depois, a navegação que costura as telas.*
+
+---
+
+## Passo 16 — Detalhes, parte 2: a tela (Fase 2)
+
+**O que foi feito:** A UI da tela de Detalhes — a `DetalhesScreen`, com capa (placeholder grande), título, countdown, controle de "de olho", plataformas, preço, informações (desenvolvedor, datas) e sinopse, mais um botão que abre o trailer no YouTube. Um formatador de data (`formatarData`) converte as datas ISO para o formato brasileiro, com 4 testes. A feature de Detalhes está completa (lógica + UI); falta só a navegação para alcançá-la.
+
+**Por quê desta forma (implementação):**
+
+- **Conteúdo rolável.** A tela usa uma `Column` com `verticalScroll`, porque o conteúdo (sinopse, várias seções) pode passar da altura da tela. Diferente das listas do Catálogo/Lista Pessoal, aqui é uma única página de conteúdo, não uma lista de itens — por isso `Column` rolável, não `LazyColumn`.
+- **O acesso ao `Context` fica só na casca com estado.** Abrir o YouTube exige um `Context` do Android (para disparar um `Intent`). Isso ficou na `DetalhesScreen` (que tem o `LocalContext`); o `DetalhesConteudo` recebe só um callback `onAssistirTrailer` e permanece livre de dependências do Android — continua previewável e testável isoladamente.
+- **Trailer via `Intent` externo** (decisão de Igor): monta a URL `youtube.com/watch?v=<trailerId>` e abre no app do YouTube/navegador. O botão só aparece quando o jogo tem `trailerId` (jogos sem trailer não mostram o botão). Sem player embutido nem dependência nova.
+- **"De olho" reusa o `AddToListSwitch`** ligado ao `alternarWatched()` do ViewModel; como o `GameService` é compartilhado (via `AppContainer`), marcar aqui reflete no Catálogo e na Lista Pessoal.
+- **Caso de borda tratado:** quando o `game` é `null` (id inexistente), a tela mostra "Jogo não encontrado" em vez de quebrar.
+- **`formatarData` é lógica pura e testada.** Converte "2026-07-10" em "10/07/2026" por manipulação de string (sem `java.time`, evitando complexidade), e devolve a entrada original se ela não estiver no formato esperado — protegendo contra dados malformados. Segue o mesmo padrão de `formatarPreco`/`calcularCountdown`: função `internal` testável sem emulador.
+- **Reúso pesado de componentes:** `CountdownBadge`, `PlatformBadge`, `PriceTag`, `AddToListSwitch` e até o `inicialDoTitulo` da capa vêm todos de `ui/comum/` — a tela é, em boa parte, composição de peças já testadas.
+
+### Arquivos criados
+
+```
+ui/detalhes/
+└── DetalhesScreen.kt        ← NOVO: tela completa (capa, infos, sinopse, switch, botão de trailer);
+                               formatarData() (internal) para datas amigáveis
+
+src/test/ui/detalhes/
+└── DetalhesFormatTest.kt    ← NOVO: 4 testes de formatarData (normal, zeros à esquerda, malformada, vazia)
+```
+
+**Estado das três telas:** Catálogo, Lista Pessoal e Detalhes estão completas — lógica, UI e testes. Todas as peças de UI e os três ViewModels existem. O que falta para amarrar o app é a **navegação**: hoje o `MainActivity` mostra só o Catálogo; Lista Pessoal e Detalhes ainda não são alcançáveis, e o clique num `GameCard` emite o id mas não leva a lugar nenhum.
+
+---
+
+*Próximo passo (provável): a **navegação** — conectar Catálogo → Detalhes (pelo clique no card) e adicionar a barra de navegação inferior (Catálogo / Lista Pessoal / Calendário / Busca) que Igor mencionou. É o que torna Lista Pessoal e Detalhes finalmente alcançáveis no app.*
