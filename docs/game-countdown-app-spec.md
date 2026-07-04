@@ -27,7 +27,17 @@ Aplicativo mobile-first para Android, para acompanhamento de lançamentos de jog
 - Busca e **filtros**: plataforma, gênero, lançamento iminente (semana, mês, trimestre, semestre, ano).
 - **Ordenação**: mais aguardados, mais próximos do lançamento, alfabética.
 - **Onboarding leve** (ex.: plataformas que o usuário possui, para personalizar catálogo e widget).
-- **Visão de calendário geral**, com filtros por plataforma ou gênero.
+- **Visão de calendário** como exibição alternativa — ver seção "Visão de Calendário" abaixo.
+
+### Visão de Calendário
+Exibição alternativa (não é uma aba própria) disponível **dentro** das telas de Catálogo e Lista Pessoal, acessível por um botão no canto superior direito da tela. Alterna entre a visão em lista e a visão em grade de calendário.
+
+- **Instâncias independentes por tela.** O Calendário do Catálogo mostra os mesmos jogos exibidos ali, respeitando os filtros de gênero e plataforma ativos. O Calendário da Lista Pessoal mostra apenas os jogos da lista pessoal. As duas instâncias são separadas.
+- **Grade mensal.** Cada dia com lançamento previsto exibe um círculo com uma versão reduzida da **capa** do jogo daquele dia. Havendo mais de um lançamento no mesmo dia, mostra-se o de **maior interesse público** (o `anticipationScore`); um selo "+N" indica que há outros lançamentos naquele dia.
+- **Dia atual destacado** visualmente (apenas quando o mês exibido é o corrente).
+- **Semana começa no domingo** (convenção brasileira).
+- **Tocar num dia com lançamento** abre um painel inferior (bottom sheet) com a lista dos jogos daquele dia. Dias sem lançamento não são interativos.
+- **Navegação entre meses** por setas (◀ retroceder, ▶ avançar).
 
 ### Lista pessoal ("Jogos que estou de olho")
 - Jogos em destaque com capa, preço, data e plataformas.

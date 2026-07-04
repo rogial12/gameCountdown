@@ -622,3 +622,44 @@ gradle/libs.versions.toml + app/build.gradle.kts  ← ALTERADO: dependência nav
 ---
 
 *Próximo passo: definir com Igor o conceito da tela de **Calendário** (formato: lista por mês, grade mensal ou timeline) — a lacuna de produto identificada — e então implementá-la como a terceira aba.*
+
+---
+
+## Passo 18 — Coil: capas reais (Fase 2)
+
+**O que foi feito:** Substituição do placeholder de capa (caixa colorida com a inicial) por imagens reais carregadas da rede com Coil. Criou-se o componente `GameCover`, que encapsula "carrega a `coverUrl` ou mostra o placeholder"; `GameCard` e `DetalhesScreen` passaram a usá-lo. Este é o Passo 1 do roadmap do Calendário (definido com Igor): capas reais são a base visual da grade de calendário (círculos com a capa do jogo).
+
+**Contexto (roadmap do Calendário):** Igor definiu o conceito do Calendário — uma **visão alternativa** (grade mensal) dentro de Catálogo e Lista Pessoal, registrada agora na spec (`game-countdown-app-spec.md`, seção "Visão de Calendário"). O roadmap acordado tem 3 passos: **(1) Coil — este passo**; (2) mover a Busca para uma aba própria na barra inferior; (3) o Calendário em si.
+
+**Decisões tomadas por Igor:**
+
+- **Adicionar Coil agora**, em vez de manter o placeholder. O círculo de capa é a assinatura visual do Calendário — uma inicial num círculo minúsculo perde o sentido. Confirmou-se que o mock já tem `coverUrl` preenchido (URLs do `picsum.photos`): são imagens reais e carregáveis, embora fotos genéricas (a arte real dos jogos vem na Fase 3, via RAWG/Steam, no mesmo campo `coverUrl` — então Coil agora é compatível com o futuro).
+
+**Por quê desta forma (implementação):**
+
+- **Um `GameCover` reutilizável** concentra a lógica de capa num só lugar: se a `coverUrl` é vazia, mostra o placeholder da inicial; se há URL, o Coil baixa a imagem e usa o mesmo placeholder como estado de *carregando* e de *erro*. `GameCard`, `DetalhesScreen` e (em breve) os círculos do Calendário reusam o mesmo componente — sem duplicar "capa ou placeholder".
+- **`SubcomposeAsyncImage` do Coil** foi escolhido por permitir *slots* Composable para os estados de loading/erro (ali entra o placeholder da inicial), em vez de apenas um `Painter` estático.
+- **Fallback consistente:** o placeholder continua sendo a caixa colorida com a inicial (extraída do antigo `GameCard`), então sem capa, carregando ou com falha de rede o visual é o mesmo já conhecido — nada de tela quebrada.
+- **Coil 2.7.0** (artefato único `coil-compose`, que já inclui a camada de rede) + `crossfade` para a imagem surgir suavemente. Optou-se por não usar shimmer/skeleton por ora (o placeholder estático basta; shimmer fica como polimento futuro).
+- **Permissão de INTERNET** adicionada ao manifesto — necessária para o Coil baixar as imagens.
+- **Sem novos testes unitários:** carregamento de imagem é comportamento de UI/rede, sem lógica pura a testar em `src/test`. A verificação foi feita **rodando no aparelho** (screenshot confirmou as capas do `picsum` carregando nos cards). O `inicialDoTitulo` (placeholder) já tinha teste.
+
+### Arquivos criados/alterados
+
+```
+ui/comum/
+├── GameCover.kt   ← NOVO: capa via Coil com fallback para o placeholder da inicial
+└── GameCard.kt    ← ALTERADO: usa GameCover no lugar do Box+inicial inline
+
+ui/detalhes/DetalhesScreen.kt  ← ALTERADO: capa grande agora usa GameCover
+
+AndroidManifest.xml            ← ALTERADO: + permissão INTERNET
+gradle/libs.versions.toml + app/build.gradle.kts  ← ALTERADO: dependência coil-compose 2.7.0
+docs/game-countdown-app-spec.md ← ALTERADO: nova seção "Visão de Calendário" (conceito definido por Igor)
+```
+
+**Estado:** capas reais carregando no app. Próximo passo do roadmap: mover a Busca do topo do Catálogo para uma aba dedicada na barra inferior (liberando o topo-direito para o botão de calendário), e então o Calendário.
+
+---
+
+*Próximo passo: Passo 2 do roadmap — **Busca como aba inferior**: criar a tela/ViewModel de Busca (reusando `searchGames`), remover o modo de busca do Catálogo e adicionar a aba na `NavigationBar`.*

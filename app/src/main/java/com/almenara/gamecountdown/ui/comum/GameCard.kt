@@ -1,8 +1,6 @@
 package com.almenara.gamecountdown.ui.comum // pacote dos componentes visuais compartilhados entre telas
 
-import androidx.compose.foundation.background // modifier que pinta um fundo colorido atrás de um conteúdo
 import androidx.compose.foundation.layout.Arrangement // define o espaçamento entre filhos de Row/Column
-import androidx.compose.foundation.layout.Box // container que empilha/centraliza um conteúdo (usado na capa placeholder)
 import androidx.compose.foundation.layout.Column // organiza filhos verticalmente (título, plataformas, preço/countdown)
 import androidx.compose.foundation.layout.FlowRow // como Row, mas quebra para a linha de baixo quando não cabe (plataformas)
 import androidx.compose.foundation.layout.Row // organiza filhos horizontalmente (capa à esquerda, infos à direita)
@@ -13,7 +11,6 @@ import androidx.compose.material3.Card // "cartão" do Material 3: superfície e
 import androidx.compose.material3.MaterialTheme // acesso ao tema atual (cores, tipografia, formas do Material 3)
 import androidx.compose.material3.Text // componente que desenha um texto na tela
 import androidx.compose.runtime.Composable // anotação que marca uma função como componente de UI do Compose
-import androidx.compose.ui.Alignment // define alinhamento (ex.: centralizar a inicial na capa)
 import androidx.compose.ui.Modifier // objeto que descreve ajustes de layout/aparência, repassado de fora pra dentro
 import androidx.compose.ui.draw.clip // recorta um conteúdo no formato de uma forma (cantos arredondados da capa)
 import androidx.compose.ui.text.font.FontWeight // controla o peso (negrito) do texto
@@ -50,21 +47,14 @@ fun GameCard(
             modifier = Modifier.padding(12.dp),                 // respiro interno entre a borda do card e o conteúdo
             horizontalArrangement = Arrangement.spacedBy(12.dp) // espaço fixo entre a capa e a coluna de infos
         ) {
-            // Capa placeholder: caixa colorida com a inicial do título centralizada (substitui a imagem real por ora)
-            Box(
+            // Capa do jogo: carrega a imagem (Coil) ou mostra o placeholder da inicial — tudo dentro do GameCover
+            GameCover(
+                coverUrl = game.coverUrl,                        // URL da capa (pode ser vazia)
+                title = game.title,                              // título usado como inicial do placeholder
                 modifier = Modifier
-                    .size(width = 72.dp, height = 96.dp)             // proporção retrato, típica de capa de jogo
-                    .clip(MaterialTheme.shapes.small)                // cantos arredondados iguais aos dos badges
-                    .background(MaterialTheme.colorScheme.secondaryContainer), // cor de fundo do placeholder, vinda do tema
-                contentAlignment = Alignment.Center                  // centraliza a inicial dentro da caixa
-            ) {
-                Text(
-                    text = inicialDoTitulo(game.title),                    // a letra inicial calculada pela função de apoio
-                    style = MaterialTheme.typography.headlineMedium,       // fonte grande, já que é o único conteúdo da capa
-                    fontWeight = FontWeight.Bold,                          // negrito para destacar a inicial
-                    color = MaterialTheme.colorScheme.onSecondaryContainer // cor que contrasta com o fundo do placeholder
-                )
-            }
+                    .size(width = 72.dp, height = 96.dp)         // proporção retrato, típica de capa de jogo
+                    .clip(MaterialTheme.shapes.small)            // cantos arredondados iguais aos dos badges
+            )
 
             // Column: empilha verticalmente título, plataformas e a linha de preço/countdown
             Column(

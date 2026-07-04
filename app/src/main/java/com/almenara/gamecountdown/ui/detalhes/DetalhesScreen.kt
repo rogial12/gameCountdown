@@ -2,7 +2,6 @@ package com.almenara.gamecountdown.ui.detalhes // pacote da feature de detalhes 
 
 import android.content.Intent // usado para abrir o trailer no YouTube (fora do app)
 import android.net.Uri // representa o endereço (URL) do vídeo do YouTube
-import androidx.compose.foundation.background // modifier que pinta um fundo colorido (capa placeholder)
 import androidx.compose.foundation.layout.Arrangement // define o espaçamento entre os elementos empilhados
 import androidx.compose.foundation.layout.Box // container para centralizar (capa e mensagem de "não encontrado")
 import androidx.compose.foundation.layout.Column // empilha verticalmente todas as seções da tela
@@ -44,9 +43,9 @@ import com.almenara.gamecountdown.data.model.Genre // enum de gêneros; usado no
 import com.almenara.gamecountdown.data.model.Platform // enum de plataformas
 import com.almenara.gamecountdown.ui.comum.AddToListSwitch // switch de "de olho" (Passo 14)
 import com.almenara.gamecountdown.ui.comum.CountdownBadge // chip de countdown (Passo 7)
+import com.almenara.gamecountdown.ui.comum.GameCover // capa do jogo (imagem via Coil ou placeholder da inicial)
 import com.almenara.gamecountdown.ui.comum.PlatformBadge // chip de plataforma (Passo 6)
 import com.almenara.gamecountdown.ui.comum.PriceTag // chip de preço (Passo 6)
-import com.almenara.gamecountdown.ui.comum.inicialDoTitulo // reaproveita a inicial do título para a capa placeholder
 
 // função de apoio: converte uma data ISO ("2026-07-10") no formato amigável brasileiro ("10/07/2026").
 // é lógica pura (texto -> texto), por isso fica fora do @Composable e é 'internal' para ser testável sem emulador.
@@ -138,22 +137,15 @@ private fun DetalhesConteudo(
                     .padding(16.dp),                        // respiro nas bordas do conteúdo
                 verticalArrangement = Arrangement.spacedBy(12.dp) // espaço fixo entre as seções
             ) {
-                // capa placeholder grande, com a inicial do título centralizada
-                Box(
+                // capa grande do jogo: carrega a imagem (Coil) ou mostra o placeholder da inicial
+                GameCover(
+                    coverUrl = game.coverUrl,
+                    title = game.title,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp)
                         .clip(MaterialTheme.shapes.medium)
-                        .background(MaterialTheme.colorScheme.secondaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = inicialDoTitulo(game.title),
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
+                )
 
                 // título do jogo
                 Text(
