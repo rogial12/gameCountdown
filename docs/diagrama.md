@@ -707,3 +707,35 @@ src/test/ui/catalogo/CatalogoViewModelTest.kt ← ALTERADO: removidos os 3 teste
 ---
 
 *Próximo passo: Passo 3 do roadmap — o **Calendário**: o componente de grade mensal reutilizável (com capas nos dias via GameCover, selo "+N", hoje destacado, setas de mês), o toggle de visão (lista ↔ grade) em Catálogo e Lista Pessoal, e o bottom sheet ao tocar um dia.*
+
+---
+
+## Passo 20 — Calendário 3a: lógica de agrupamento (Fase 2)
+
+**O que foi feito:** Primeira fatia do Calendário (Passo 3 do roadmap), pela camada de lógica. Uma função pura, `jogosPorDiaDoMes`, que agrupa os jogos por dia de um mês e ordena cada dia por interesse público. 5 testes. Nenhuma UI ainda — só a base que o componente de grade vai consumir.
+
+**Fatiamento do Calendário (acordado com Igor):** por ser o passo mais complexo, foi dividido em três: **(3a) lógica de agrupamento — este passo**; (3b) o componente de grade + o bottom sheet do dia (onde entram as decisões visuais, a resolver *vendo* na tela); (3c) integração — o botão de alternar lista↔grade em Catálogo e Lista Pessoal.
+
+**Por quê desta forma:**
+
+- **Toda a regra "que jogo aparece em cada dia" é lógica pura, isolada e testada.** `jogosPorDiaDoMes(jogos, mes)` recebe a lista de jogos (a mesma que cada tela já filtra) e um mês (`YearMonth`), e devolve um mapa `dia do mês -> lista de jogos daquele dia`. A lista de cada dia vem ordenada por `anticipationScore` (maior primeiro), então o **primeiro é o destaque** que a grade mostrará no círculo, e o **tamanho da lista** dá o "+N" (quantos lançamentos há no dia). O componente visual (3b) só vai ler esse resultado — sem lógica de datas na UI.
+- **Reusa o dado que as telas já têm.** Confirma a decisão anterior: o Calendário não precisa de novo método no Service. Catálogo passa sua lista já filtrada (gênero/plataforma); Lista Pessoal passa só os "de olho". A mesma função serve as duas instâncias.
+- **`java.time` (com o desugaring já ativo)** faz o trabalho de datas: `LocalDate.parse` lê a `releaseDate` e `YearMonth.from` decide se o jogo cai no mês exibido. Datas malformadas são ignoradas com segurança (`runCatching`) em vez de quebrar a tela.
+
+**Sobre os testes (5):** agrupa os jogos do mês por dia; ignora jogos de outros meses (inclusive mesmo mês de outro ano); no mesmo dia, ordena por interesse com o destaque primeiro; data malformada é ignorada sem quebrar; mês sem jogos devolve vazio.
+
+### Arquivos criados
+
+```
+ui/comum/
+└── CalendarioAgrupamento.kt   ← NOVO: jogosPorDiaDoMes() (internal, pura)
+
+src/test/ui/comum/
+└── CalendarioAgrupamentoTest.kt  ← NOVO: 5 testes do agrupamento
+```
+
+**Estado:** a lógica do Calendário está pronta e testada. Próximo: o componente visual da grade (3b).
+
+---
+
+*Próximo passo: Calendário 3b — o componente de grade mensal (cabeçalho do mês com setas ◀ ▶, semana começando no domingo, círculos de capa via `GameCover` nos dias com lançamento, selo "+N", dia atual destacado) e o bottom sheet que abre ao tocar um dia. As decisões visuais serão conferidas por screenshot no aparelho.*
