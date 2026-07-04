@@ -28,10 +28,14 @@ class CatalogoViewModel(
 
     // busca os jogos no Service usando o filtro e a ordenação atuais do estado, e atualiza o estado com o resultado
     fun carregarJogos() {
+        // 1) pede ao Service a lista já filtrada e ordenada
         val jogos = gameService.getGames(
             filtro = _uiState.value.filtro,
             ordenacao = _uiState.value.ordenacao
         )
+            // 2) para cada jogo, calcula os dias até o lançamento e empacota tudo num JogoCatalogo (pronto pra exibir)
+            //    isso é feito AQUI (no ViewModel) para a tela não precisar chamar o Service durante o desenho
+            .map { game -> JogoCatalogo(game, gameService.getDaysUntilRelease(game)) }
         _uiState.update { it.copy(jogos = jogos) } // copy: gera um novo estado, só trocando o campo "jogos"
     }
 

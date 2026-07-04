@@ -40,7 +40,9 @@ private class FakeGameService(private val jogosBase: List<Game>) : GameService {
         if (watched) watchedIds.add(id) else watchedIds.remove(id)
     }
 
-    override fun getDaysUntilRelease(game: Game): Long = 0L // não usado nestes testes
+    // devolve um número de dias derivado do id do jogo (ex.: id "1" -> 1 dia) —
+    // assim os testes conseguem verificar que CADA jogo recebeu o countdown correspondente ao seu id
+    override fun getDaysUntilRelease(game: Game): Long = game.id.toLong()
 }
 
 // classe de testes do CatalogoViewModel
@@ -73,12 +75,21 @@ class CatalogoViewModelTest {
     }
 
     // ao ser criado, o ViewModel deve carregar o catálogo automaticamente (via init { carregarJogos() })
+    // agora cada item do estado é um JogoCatalogo (jogo + dias), então acessamos o jogo via it.game
     @Test
     fun `estado inicial carrega o catalogo automaticamente`() {
         val estado = viewModel.uiState.value
-        assertEquals(listOf("1", "2"), estado.jogos.map { it.id })
+        assertEquals(listOf("1", "2"), estado.jogos.map { it.game.id })
         assertEquals(FiltroCatalogo(), estado.filtro) // filtro padrão: nenhum
         assertEquals(CriterioOrdenacao.MAIS_PROXIMOS, estado.ordenacao) // ordenação padrão
+    }
+
+    // cada JogoCatalogo deve carregar os dias calculados pelo Service para AQUELE jogo (pareamento correto)
+    // o fake devolve dias = id do jogo, então o jogo "1" deve ter dias=1 e o jogo "2" dias=2
+    @Test
+    fun `estado carrega os dias de countdown de cada jogo`() {
+        val estado = viewModel.uiState.value
+        assertEquals(listOf(1L, 2L), estado.jogos.map { it.dias })
     }
 
     // aplicarFiltro deve atualizar o filtro no estado E repassar esse filtro ao Service na recarga
@@ -106,8 +117,8 @@ class CatalogoViewModelTest {
     fun `alternarWatched marca o jogo como observado e recarrega a lista`() {
         viewModel.alternarWatched("1")
 
-        val jogo1 = viewModel.uiState.value.jogos.find { it.id == "1" }
-        assertTrue(jogo1?.isWatched == true)
+        val jogo1 = viewModel.uiState.value.jogos.find { it.game.id == "1" }
+        assertTrue(jogo1?.game?.isWatched == true)
         assertEquals(1, fakeService.chamadasSetWatched)
     }
 
@@ -117,8 +128,8 @@ class CatalogoViewModelTest {
         viewModel.alternarWatched("1")
         viewModel.alternarWatched("1")
 
-        val jogo1 = viewModel.uiState.value.jogos.find { it.id == "1" }
-        assertTrue(jogo1?.isWatched == false)
+        val jogo1 = viewModel.uiState.value.jogos.find { it.game.id == "1" }
+        assertTrue(jogo1?.game?.isWatched == false)
         assertEquals(2, fakeService.chamadasSetWatched)
     }
 

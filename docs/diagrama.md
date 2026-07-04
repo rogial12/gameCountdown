@@ -318,3 +318,43 @@ src/test/ui/catalogo/
 ---
 
 *Próximo passo: a `CatalogoScreen` — a tela que junta a `FilterBar` e a lista de `GameCard`, observando o estado do `CatalogoViewModel`. Depois dela, ligar o `MainActivity` (fim do "Hello Android!").*
+
+---
+
+## Passo 10 — CatalogoScreen: a primeira tela montada (ui/catalogo/) (Fase 2)
+
+**O que foi feito:** Montagem da `CatalogoScreen`, a primeira tela de verdade — junta a `FilterBar` no topo e uma lista rolável de `GameCard`, observando o `CatalogoViewModel`. Para isso, a camada de estado foi ajustada: criou-se o modelo `JogoCatalogo` (jogo + dias) e o `CatalogoUiState`/`CatalogoViewModel` passaram a calcular o countdown ao montar o estado. Os testes do ViewModel foram atualizados e ganharam um caso novo. A tela ainda **não** está ligada ao `MainActivity` (próximo passo).
+
+O passo foi feito em duas partes, respeitando a segmentação por camada: **(1)** a mudança de estado/ViewModel (lógica, com testes) e **(2)** a tela (UI).
+
+**Parte 1 — Estado + ViewModel (por quê):**
+
+- **O countdown passou a viver no estado (`JogoCatalogo`).** O `GameCard` precisa dos "dias até o lançamento", mas só o `GameService` sabe calculá-los (depende do relógio). Duas opções foram consideradas: (a) o `CatalogoUiState` carregar os dias já calculados; (b) o ViewModel expor um método `diasAte(game)` que a tela chamaria por card. Escolheu-se **(a)**: o ViewModel calcula os dias de cada jogo dentro de `carregarJogos()` e guarda um `JogoCatalogo(game, dias)` no estado. Assim a tela **só observa estado** e nada chama o Service durante o desenho — o `CatalogoUiState` descreve, sozinho, tudo que a tela precisa (princípio central do MVVM). O custo aceito foi mexer no estado, no ViewModel e nos seus testes.
+- **Teste novo de pareamento.** O `FakeGameService` dos testes passou a devolver, em `getDaysUntilRelease`, um valor derivado do id do jogo (id "1" → 1 dia), permitindo um teste que verifica que **cada** jogo recebeu o countdown correspondente ao seu próprio id — não basta o campo existir, ele tem que estar pareado ao jogo certo. Os testes antigos foram ajustados para o novo formato (`it.game.id` em vez de `it.id`).
+
+**Parte 2 — A tela (por quê):**
+
+- **Tela com estado + conteúdo sem estado.** `CatalogoScreen(viewModel)` é a casca "com estado": observa o `uiState` via `collectAsState()` e repassa dados e callbacks. `CatalogoConteudo(...)` é "sem estado": recebe tudo por parâmetro e só desenha. Essa divisão deixa o conteúdo previewável no Android Studio (o `@Preview` usa dados fictícios, sem precisar de ViewModel) e testável isoladamente no futuro.
+- **`Scaffold` + `TopAppBar`** dão a estrutura padrão de tela do Material 3 (barra de título "Catálogo" + área de conteúdo). O padding reservado pela barra é repassado ao conteúdo para nada ficar escondido atrás dela.
+- **`LazyColumn` para a lista**, não uma `Column` comum: ela só compõe os cards visíveis e reaproveita os demais conforme o usuário rola — eficiente para catálogos grandes. A `key` por id ajuda o Compose a reaproveitar os itens corretamente quando a lista é filtrada/reordenada.
+- **Estado vazio tratado** (decisão de Igor): quando nenhum jogo passa pelos filtros, a tela mostra "Nenhum jogo encontrado" centralizado, em vez de uma área em branco. Os estados `carregando` e `mensagemErro` não são desenhados por ora — o mock é síncrono e nunca os dispara; ficam reservados para a API real da Fase 3.
+- **Clique no card é um `onJogoClick(id)` ainda sem destino.** O parâmetro existe (com padrão vazio) para a futura navegação à tela de detalhes; nesta fase não faz nada, pois o foco é validar o fluxo de catálogo + filtros.
+
+### Arquivos criados/alterados
+
+```
+ui/catalogo/
+├── JogoCatalogo (em CatalogoUiState.kt)  ← NOVO modelo: jogo + dias já calculados
+├── CatalogoUiState.kt                    ← ALTERADO: jogos agora é List<JogoCatalogo>
+├── CatalogoViewModel.kt                  ← ALTERADO: carregarJogos() calcula os dias ao montar o estado
+└── CatalogoScreen.kt                     ← NOVO: Scaffold + FilterBar + LazyColumn de GameCard (+ estado vazio)
+
+src/test/ui/catalogo/
+└── CatalogoViewModelTest.kt              ← ALTERADO: asserções no novo formato + teste de pareamento dos dias
+```
+
+**Estado da camada de UI ao fim deste passo:** a tela de Catálogo está montada e compilando, com todos os seus componentes integrados e o ViewModel testado. Falta só o último fio: ligar o `MainActivity` à `CatalogoScreen` (criando o ViewModel via `CatalogoViewModelFactory`), o que substitui o "Hello Android!" do template pelo catálogo real rodando no aparelho.
+
+---
+
+*Próximo passo: ligar o `MainActivity` à `CatalogoScreen`, usando a `CatalogoViewModelFactory` — o momento em que o app finalmente mostra conteúdo de verdade.*
