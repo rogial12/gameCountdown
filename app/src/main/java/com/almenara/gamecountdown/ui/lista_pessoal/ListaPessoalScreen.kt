@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items // gera um item da LazyColumn para
 import androidx.compose.material.icons.Icons // ponto de acesso aos ícones do Material
 import androidx.compose.material.icons.automirrored.filled.List // ícone (lista) para voltar da grade à lista
 import androidx.compose.material.icons.filled.DateRange // ícone (calendário) para alternar para a grade
+import androidx.compose.material.icons.filled.Delete // ícone (lixeira) do botão de remover cada jogo da lista
 import androidx.compose.material3.ExperimentalMaterial3Api // a TopAppBar ainda é marcada como API experimental do Material 3
 import androidx.compose.material3.Icon // desenha um ícone vetorial
 import androidx.compose.material3.IconButton // botão clicável que contém só um ícone (o alternador de visão)
@@ -40,7 +41,6 @@ import com.almenara.gamecountdown.data.model.Genre // enum de gêneros; usado no
 import com.almenara.gamecountdown.data.model.Platform // enum de plataformas; usado no @Preview
 import com.almenara.gamecountdown.data.service.CriterioOrdenacao // enum de ordenação; parte da assinatura do conteúdo
 import com.almenara.gamecountdown.data.service.FiltroCatalogo // agrupador de filtros; parte da assinatura do conteúdo
-import com.almenara.gamecountdown.ui.comum.AddToListSwitch // switch de "de olho" (Passo 14)
 import com.almenara.gamecountdown.ui.comum.Calendario // visão de grade mensal (Passo 21)
 import com.almenara.gamecountdown.ui.comum.FilterBar // barra de filtros/ordenação, compartilhada com o Catálogo
 import com.almenara.gamecountdown.ui.comum.GameCard // componente que exibe um jogo na lista (Passo 8)
@@ -124,7 +124,7 @@ private fun ListaPessoalConteudo(
     ordenacao: CriterioOrdenacao,       // ordenação atual (para a FilterBar)
     onFiltroChange: (FiltroCatalogo) -> Unit,        // emite o novo filtro
     onOrdenacaoChange: (CriterioOrdenacao) -> Unit,  // emite a nova ordenação
-    onRemover: (String) -> Unit,       // emite o id do jogo a remover (switch desligado)
+    onRemover: (String) -> Unit,       // emite o id do jogo a remover (botão de lixeira tocado)
     onJogoClick: (String) -> Unit,     // emite o id do jogo tocado
     modifier: Modifier = Modifier      // ajustes externos (aqui: o padding da barra de topo)
 ) {
@@ -158,7 +158,7 @@ private fun ListaPessoalConteudo(
                     )
                 }
             }
-            // visão em lista com jogos: a LazyColumn de cards com o switch de remover
+            // visão em lista com jogos: a LazyColumn de cards com o botão de lixeira
             else -> {
                 LazyColumn(
                     contentPadding = PaddingValues(12.dp),              // respiro ao redor da lista
@@ -171,14 +171,11 @@ private fun ListaPessoalConteudo(
                             dias = item.dias,                          // o countdown já calculado
                             onClick = { onJogoClick(item.game.id) },   // ao tocar o card, avisa com o id
                             trailing = {
-                                // switch sempre ligado aqui (todo jogo da lista está "de olho");
-                                // ao desligar (marcado = false), pede a remoção do jogo
-                                AddToListSwitch(
-                                    marcado = true,
-                                    onMarcarChange = { marcado ->
-                                        if (!marcado) onRemover(item.game.id)
-                                    }
-                                )
+                                // botão de lixeira: toca e já pede a remoção do jogo (item 7 do feedback de Igor;
+                                // substitui o AddToListSwitch, que ficava confuso aqui por já estar sempre ligado)
+                                IconButton(onClick = { onRemover(item.game.id) }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "Remover da lista")
+                                }
                             }
                         )
                     }

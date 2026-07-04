@@ -876,4 +876,26 @@ src/test/.../ui/catalogo/CatalogoViewModelFactoryTest.kt   ← ALTERADO: assinat
 
 ---
 
-*Próximo passo: item 7 — trocar o `AddToListSwitch` das tiles da Lista Pessoal por um botão de lixeira, mantendo a remoção instantânea + desfazer.*
+## Passo 25 — Lista Pessoal: botão de lixeira no lugar do switch (Fase 2)
+
+**O que foi feito:** Item 7 da rodada de feedback. Nas tiles da Lista Pessoal, o `AddToListSwitch` (sempre ligado, porque todo jogo ali já está "de olho") deu lugar a um `IconButton` com ícone de lixeira (`Icons.Filled.Delete`). O comportamento por trás — remoção instantânea + snackbar "Desfazer" — não mudou; só a forma de disparar a remoção.
+
+**Por quê desta forma:**
+
+- **O switch nunca fez sentido semântico nesta tela.** Ele sempre aparecia ligado (nenhum jogo na Lista Pessoal está "fora"), então a única interação possível era desligá-lo para remover — um controle de dois estados usado para representar uma ação de um estado só. Um botão de lixeira comunica a ação (remover) diretamente, sem essa indireção.
+- **Nenhuma lógica nova, nenhum teste novo.** A troca é só de componente visual: `onRemover(item.game.id)` já existia e continua sendo chamado do mesmo jeito, disparando `viewModel.removerDaLista` + o snackbar de desfazer em `ListaPessoalScreen`. Não há função pura nova para testar — mesmo padrão do `AddToListSwitch` original, que também não tinha teste unitário próprio.
+- **`AddToListSwitch` não foi removido do projeto** — continua em uso na tela de Detalhes (decisão de Igor no item 8.3 desta mesma rodada: manter o switch lá). Só o uso na Lista Pessoal mudou.
+- **Ícone vem do `material-icons-core`** (mesmo pacote já usado para `DateRange` e `List`/`AutoMirrored`), sem precisar do `-extended`.
+
+### Arquivos alterados
+
+```
+ui/lista_pessoal/
+└── ListaPessoalScreen.kt   ← ALTERADO: trailing do GameCard passa de AddToListSwitch para IconButton + Delete
+```
+
+**Estado:** itens 1, 2, 3 e 7 do feedback concluídos. Seguem: 6 (botão "+" no Catálogo), 4 e 5 (busca), 8 (Detalhes) e 9 (ícone do app).
+
+---
+
+*Próximo passo: item 6 — botão "+" nas tiles do Catálogo, para adicionar à Lista Pessoal sem abrir Detalhes.*
