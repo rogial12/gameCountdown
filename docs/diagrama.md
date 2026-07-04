@@ -426,3 +426,46 @@ gradle/libs.versions.toml + app/build.gradle.kts  ← ALTERADO: dependência mat
 ---
 
 *Próximo passo: a definir com Igor — provavelmente a **Lista Pessoal**, a tela de **Detalhes**, ou a **navegação** que costura as telas (hoje o clique no card já emite o id, mas ainda sem destino).*
+
+---
+
+## Passo 13 — Lista Pessoal, parte 1: infra compartilhada + ViewModel (Fase 2)
+
+**O que foi feito:** Início da feature "Jogos que estou de olho" pela camada de lógica. Duas coisas: **(1)** um `AppContainer` que passa a compartilhar uma única instância de `GameService` entre as telas; **(2)** o `ListaPessoalViewModel` (+ estado `ListaPessoalUiState`/`JogoLista` e `ListaPessoalViewModelFactory`), com 3 testes. A UI (o `AddToListSwitch`, o slot no `GameCard` e a `ListaPessoalScreen`) fica para o Passo 14.
+
+**Decisões de produto/arquitetura tomadas por Igor:**
+
+- **Repositório mock compartilhado (uma única instância).** Até aqui, cada Factory criava seu próprio `MockGameRepository`. Como agora duas telas mexem no MESMO dado (a lista "de olho"), isso daria listas divergentes. Decidiu-se centralizar num `AppContainer` (um `object`/singleton) que expõe um `GameService` único; ambas as Factories passam a usá-lo como padrão. Assim, marcar um jogo no Catálogo reflete na Lista Pessoal e vice-versa. É um "composition root" manual — o único lugar que conhece as implementações concretas (`GameServiceImpl` + `MockGameRepository`); quando a Fase 3 trouxer a API real, só o `AppContainer` muda.
+- **A Lista Pessoal terá controle de remover no card** (o `AddToListSwitch`, que estava adiado desde o Passo 8). Isso será implementado no Passo 14; o `ListaPessoalViewModel` já expõe a ação `removerDaLista(id)` que dá suporte a ele.
+
+**Por quê desta forma (implementação):**
+
+- **ViewModel espelha o do Catálogo, mas mais simples.** Observa o `getWatchedGames()` e calcula os dias de cada jogo ao montar o estado (mesmo padrão do Catálogo: a tela só observa estado, nada chama o Service no desenho). A ação `removerDaLista(id)` chama `setWatched(id, false)` e recarrega. Remover um id que não está na lista é inofensivo (coberto por teste).
+- **`JogoLista` é um tipo próprio da feature**, espelhando o `JogoCatalogo` (jogo + dias). Optou-se por não reusar o `JogoCatalogo` do pacote do Catálogo para não acoplar as duas features; ficou registrado que os dois podem ser unificados num tipo comum no futuro, se valer a pena.
+- **A Factory usa o `AppContainer` como padrão**, o que é justamente o que garante o dado compartilhado com o Catálogo.
+
+**Sobre os testes (3):** `init` carrega só os jogos observados, com os dias pareados a cada jogo (o fake devolve dias = id); `removerDaLista` tira o jogo certo da lista; remover um id fora da lista não altera nada. O fake guarda o conjunto de watched em memória, simulando o repositório.
+
+### Arquivos criados/alterados
+
+```
+di/
+└── AppContainer.kt                     ← NOVO: composition root único (GameService compartilhado)
+
+ui/catalogo/
+└── CatalogoViewModelFactory.kt         ← ALTERADO: usa AppContainer.gameService (antes criava o seu próprio)
+
+ui/lista_pessoal/
+├── ListaPessoalUiState.kt              ← NOVO: JogoLista (jogo + dias) + ListaPessoalUiState
+├── ListaPessoalViewModel.kt            ← NOVO: carrega watched + removerDaLista(id)
+└── ListaPessoalViewModelFactory.kt     ← NOVO: cria o ViewModel com o GameService compartilhado
+
+src/test/ui/lista_pessoal/
+└── ListaPessoalViewModelTest.kt        ← NOVO: 3 testes (carga, remoção, remoção de id ausente)
+```
+
+**Estado:** a lógica da Lista Pessoal está pronta e testada, compartilhando o dado com o Catálogo. Falta a UI: o componente `AddToListSwitch`, um slot no `GameCard` para acomodá-lo, e a `ListaPessoalScreen`. E, para a tela ser alcançável no app, ainda falta a navegação (hoje o `MainActivity` mostra só o Catálogo).
+
+---
+
+*Próximo passo: Lista Pessoal, parte 2 — o componente `AddToListSwitch`, um slot opcional no `GameCard` e a `ListaPessoalScreen`. A navegação que torna a tela alcançável é um passo à parte.*
