@@ -54,28 +54,32 @@ private fun <T> FilterDropdown(
     // estado local de UI: o menu está aberto ou fechado? não é regra de negócio, então vive no próprio componente
     var aberto by remember { mutableStateOf(false) }
 
-    // Box implícita: o OutlinedButton é a âncora; o DropdownMenu aparece ancorado logo abaixo dele
-    OutlinedButton(
-        onClick = { aberto = true }, // tocar o botão abre o menu
-        modifier = modifier
-    ) {
-        Text(text = "$textoBotao ▾") // o "▾" indica visualmente que o botão abre um menu
-    }
+    // IMPORTANTE: o botão e o menu precisam ficar juntos DENTRO de um Box.
+    // é o Box que serve de âncora — o DropdownMenu aparece logo abaixo dele (do botão).
+    // sem o Box, os dois viravam filhos soltos da Row da barra: o menu não ancorava no botão
+    // e o espaçamento entre os filtros mudava ao abrir (cada menu contava como um item extra na Row).
+    Box(modifier = modifier) {
+        OutlinedButton(
+            onClick = { aberto = true } // tocar o botão abre o menu
+        ) {
+            Text(text = "$textoBotao ▾") // o "▾" indica visualmente que o botão abre um menu
+        }
 
-    // o menu só é composto/exibido quando 'aberto' é true
-    DropdownMenu(
-        expanded = aberto,             // controla a visibilidade pelo estado local
-        onDismissRequest = { aberto = false } // tocar fora fecha o menu sem escolher nada
-    ) {
-        // cria um item clicável para cada opção recebida
-        opcoes.forEach { (valor, rotulo) ->
-            DropdownMenuItem(
-                text = { Text(rotulo) },          // o texto exibido na linha do menu
-                onClick = {
-                    onSelecionar(valor)           // avisa o chamador do valor escolhido
-                    aberto = false                // e fecha o menu
-                }
-            )
+        // o menu só é composto/exibido quando 'aberto' é true; ancora no Box acima (abaixo do botão)
+        DropdownMenu(
+            expanded = aberto,             // controla a visibilidade pelo estado local
+            onDismissRequest = { aberto = false } // tocar fora fecha o menu sem escolher nada
+        ) {
+            // cria um item clicável para cada opção recebida
+            opcoes.forEach { (valor, rotulo) ->
+                DropdownMenuItem(
+                    text = { Text(rotulo) },          // o texto exibido na linha do menu
+                    onClick = {
+                        onSelecionar(valor)           // avisa o chamador do valor escolhido
+                        aberto = false                // e fecha o menu
+                    }
+                )
+            }
         }
     }
 }
