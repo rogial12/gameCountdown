@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement // define o espaçamento e
 import androidx.compose.foundation.layout.Box // container usado para centralizar a mensagem de "lista vazia"
 import androidx.compose.foundation.layout.Column // empilha a FilterBar sobre o conteúdo (lista ou vazio)
 import androidx.compose.foundation.layout.PaddingValues // espaçamento ao redor do conteúdo da lista
+import androidx.compose.foundation.layout.WindowInsets // usado para zerar os insets do Scaffold interno (o externo cuida deles)
 import androidx.compose.foundation.layout.fillMaxSize // faz um componente ocupar todo o espaço disponível
 import androidx.compose.foundation.layout.fillMaxWidth // faz o campo de busca ocupar toda a largura da barra de topo
 import androidx.compose.foundation.layout.padding // aplica espaçamento (usado com o padding do Scaffold)
@@ -56,6 +57,8 @@ fun CatalogoScreen(
     // Scaffold monta a estrutura da tela: barra de topo fixa + área de conteúdo abaixo dela
     Scaffold(
         modifier = modifier,
+        // zera os insets aqui porque esta tela roda dentro do Scaffold externo (GameCountdownApp), que já os aplica
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             // a barra de topo muda de forma conforme o modo (normal x busca); toda a lógica fica no CatalogoTopBar
             CatalogoTopBar(

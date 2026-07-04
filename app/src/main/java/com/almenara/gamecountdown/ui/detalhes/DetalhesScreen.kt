@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column // empilha verticalmente todas 
 import androidx.compose.foundation.layout.FlowRow // linha de plataformas que quebra quando não cabe
 import androidx.compose.foundation.layout.Row // organiza itens lado a lado (countdown + switch; rótulo + valor)
 import androidx.compose.foundation.layout.Spacer // espaço flexível para empurrar o switch para a direita
+import androidx.compose.foundation.layout.WindowInsets // usado para zerar os insets do Scaffold interno (o externo cuida deles)
 import androidx.compose.foundation.layout.fillMaxSize // ocupa todo o espaço disponível
 import androidx.compose.foundation.layout.fillMaxWidth // ocupa toda a largura disponível
 import androidx.compose.foundation.layout.height // define a altura fixa da capa
@@ -98,6 +99,8 @@ private fun DetalhesConteudo(
 ) {
     Scaffold(
         modifier = modifier,
+        // zera os insets aqui porque esta tela roda dentro do Scaffold externo (GameCountdownApp), que já os aplica
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
                 // título da barra: o nome do jogo (ou "Detalhes" enquanto/na ausência de jogo)

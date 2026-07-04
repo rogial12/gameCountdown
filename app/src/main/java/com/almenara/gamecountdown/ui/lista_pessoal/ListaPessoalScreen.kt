@@ -3,6 +3,7 @@ package com.almenara.gamecountdown.ui.lista_pessoal // pacote da feature "Jogos 
 import androidx.compose.foundation.layout.Arrangement // define o espaçamento entre os itens da lista
 import androidx.compose.foundation.layout.Box // container usado para centralizar a mensagem de "lista vazia"
 import androidx.compose.foundation.layout.PaddingValues // espaçamento ao redor do conteúdo da lista
+import androidx.compose.foundation.layout.WindowInsets // usado para zerar os insets do Scaffold interno (o externo cuida deles)
 import androidx.compose.foundation.layout.fillMaxSize // faz um componente ocupar todo o espaço disponível
 import androidx.compose.foundation.layout.padding // aplica espaçamento (usado com o padding do Scaffold)
 import androidx.compose.foundation.lazy.LazyColumn // lista vertical que só compõe os itens visíveis (eficiente na rolagem)
@@ -50,6 +51,8 @@ fun ListaPessoalScreen(
 
     Scaffold(
         modifier = modifier,
+        // zera os insets aqui porque esta tela roda dentro do Scaffold externo (GameCountdownApp), que já os aplica
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(title = { Text("Jogos que estou de olho") }) // título da tela
         },

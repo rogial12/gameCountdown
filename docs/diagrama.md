@@ -581,3 +581,44 @@ src/test/ui/detalhes/
 ---
 
 *Próximo passo (provável): a **navegação** — conectar Catálogo → Detalhes (pelo clique no card) e adicionar a barra de navegação inferior (Catálogo / Lista Pessoal / Calendário / Busca) que Igor mencionou. É o que torna Lista Pessoal e Detalhes finalmente alcançáveis no app.*
+
+---
+
+## Passo 17 — Navegação: o app amarrado (Fase 2)
+
+**O que foi feito:** A navegação com Jetpack Navigation Compose — uma barra inferior (abas Catálogo e Lista Pessoal) e a tela de Detalhes como destino empilhado, alcançável ao tocar um `GameCard`. O `MainActivity` passou a exibir a raiz navegável (`GameCountdownApp`) no lugar do Catálogo direto. Com isso, as três telas ficaram efetivamente conectadas e o app roda de ponta a ponta no aparelho.
+
+**Decisões tomadas por Igor:**
+
+- **Jetpack Navigation Compose**, não navegação manual por estado. É a biblioteca padrão: cuida da pilha de telas (voltar), da passagem de argumentos (o id do jogo para Detalhes) e integra com a barra inferior. Custa uma dependência nova (`navigation-compose`), mas é o caminho idôneo e escalável — a alternativa manual exigiria reimplementar back stack e argumentos na mão.
+- **Abas: só Catálogo + Lista Pessoal por ora.** Detalhes é tela empilhada (não aba). Calendário e Busca entram como abas quando forem definidos/feitos — adicionar uma aba depois é barato e evita placeholder descartável. (A Busca hoje vive dentro do Catálogo, na lupa; a tela dedicada de busca é futura.)
+
+**Por quê desta forma (implementação):**
+
+- **Um `NavHost` com três destinos:** `catalogo`, `lista` e `detalhes/{gameId}`. As rotas ficam centralizadas no objeto `Rotas` (sem strings soltas espalhadas). A tela de Detalhes recebe o id do jogo como argumento de rota; o clique num card chama `navController.navigate(Rotas.detalhes(id))`.
+- **Barra inferior só nas abas.** A `NavigationBar` aparece apenas quando a rota atual é Catálogo ou Lista; em Detalhes ela some (é uma tela de "profundidade", com seu próprio botão de voltar). Isso é decidido observando a rota atual (`currentBackStackEntryAsState`).
+- **Troca de aba no padrão recomendado do Android:** ao tocar uma aba, usa-se `popUpTo(startDestination){ saveState = true }` + `launchSingleTop` + `restoreState`. Resultado: não se empilham abas infinitamente, e cada aba preserva/restaura seu estado (posição de rolagem, filtros) ao ser revisitada.
+- **Cada tela cria seu ViewModel via `viewModel(factory = ...)` dentro do seu destino** — assim o ViewModel fica no escopo daquela entrada da pilha. Como todas as Factories usam o `GameService` compartilhado do `AppContainer`, o dado "de olho" é consistente entre as telas (marcar em Detalhes/Catálogo reflete na Lista).
+- **Ajuste de insets por causa do Scaffold aninhado.** O app tem um `Scaffold` externo (barra inferior) e cada tela tem o seu (barra de topo). Para os insets de sistema não serem contados duas vezes (barra de topo empurrada demais, folga embaixo), o `Scaffold` externo passou a cuidar dos insets e os internos foram marcados com `contentWindowInsets = WindowInsets(0)`. É o ponto mais delicado do passo — vale conferir o alinhamento das bordas no aparelho.
+- **Sem novos testes unitários:** navegação é encanamento de UI (rotas, pilha, barra) — sem lógica pura a testar em `src/test`. Testes instrumentados de navegação ficam para o passo dedicado de testes de UI, junto dos demais Compose.
+
+### Arquivos criados/alterados
+
+```
+ui/navigation/
+└── GameCountdownApp.kt   ← NOVO: Rotas + NavHost + barra inferior; costura Catálogo/Lista/Detalhes
+
+MainActivity.kt           ← ALTERADO: exibe GameCountdownApp() (antes: CatalogoScreen direto)
+
+ui/catalogo/CatalogoScreen.kt        ← ALTERADO: contentWindowInsets = WindowInsets(0)
+ui/lista_pessoal/ListaPessoalScreen.kt ← ALTERADO: contentWindowInsets = WindowInsets(0)
+ui/detalhes/DetalhesScreen.kt        ← ALTERADO: contentWindowInsets = WindowInsets(0)
+
+gradle/libs.versions.toml + app/build.gradle.kts  ← ALTERADO: dependência navigation-compose
+```
+
+**Marco atingido:** o protótipo da Fase 2 está navegável de ponta a ponta — três telas conectadas, dado compartilhado, tudo rodando no aparelho com dados mockados. Isso cumpre o objetivo central da fase: validar o fluxo e o conceito. Pendências conhecidas: a tela de **Calendário** (conceito ainda a definir com Igor, pois a spec só a descreve em uma linha) e a tela dedicada de **Busca**; ambas entram como novas abas. Testes instrumentados de UI (Compose) seguem reservados para um passo próprio.
+
+---
+
+*Próximo passo: definir com Igor o conceito da tela de **Calendário** (formato: lista por mês, grade mensal ou timeline) — a lacuna de produto identificada — e então implementá-la como a terceira aba.*
