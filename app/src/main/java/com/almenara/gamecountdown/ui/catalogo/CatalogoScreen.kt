@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn // lista vertical que só com
 import androidx.compose.foundation.lazy.items // gera um item da LazyColumn para cada elemento de uma lista
 import androidx.compose.material.icons.Icons // ponto de acesso aos ícones do Material
 import androidx.compose.material.icons.automirrored.filled.List // ícone (lista) para voltar da grade à lista
+import androidx.compose.material.icons.filled.Add // ícone (+) do botão de adicionar à Lista Pessoal
+import androidx.compose.material.icons.filled.Check // ícone (✓) do botão quando o jogo já está na Lista Pessoal
 import androidx.compose.material.icons.filled.DateRange // ícone (calendário) para alternar para a grade
 import androidx.compose.material3.ExperimentalMaterial3Api // a TopAppBar ainda é marcada como API experimental do Material 3
 import androidx.compose.material3.Icon // desenha um ícone vetorial
@@ -83,6 +85,7 @@ fun CatalogoScreen(
             ordenacao = uiState.ordenacao,                  // ordenação atual, idem
             onFiltroChange = viewModel::aplicarFiltro,      // ao mudar um filtro, chama o método do ViewModel
             onOrdenacaoChange = viewModel::aplicarOrdenacao, // ao mudar a ordenação, idem
+            onAlternarWatched = viewModel::alternarWatched, // toca o "+"/"✓" da tile: adiciona ou remove da Lista Pessoal
             onJogoClick = onJogoClick,                      // repassa o toque num card para quem chamou a tela
             modifier = Modifier.padding(innerPadding)       // aplica o espaço da barra de topo
         )
@@ -99,6 +102,7 @@ private fun CatalogoConteudo(
     ordenacao: CriterioOrdenacao,                    // ordenação atual (para a FilterBar)
     onFiltroChange: (FiltroCatalogo) -> Unit,        // emite o novo filtro
     onOrdenacaoChange: (CriterioOrdenacao) -> Unit,  // emite a nova ordenação
+    onAlternarWatched: (String) -> Unit,             // emite o id do jogo cujo "+"/"✓" foi tocado
     onJogoClick: (String) -> Unit,                   // emite o id do jogo tocado
     modifier: Modifier = Modifier                    // ajustes externos (aqui: o padding da barra de topo)
 ) {
@@ -143,7 +147,18 @@ private fun CatalogoConteudo(
                         GameCard(
                             game = item.game,                          // o jogo a exibir
                             dias = item.dias,                          // o countdown já calculado (vindo do estado)
-                            onClick = { onJogoClick(item.game.id) }    // ao tocar, avisa com o id do jogo
+                            onClick = { onJogoClick(item.game.id) },   // ao tocar, avisa com o id do jogo
+                            trailing = {
+                                // "+" para adicionar à Lista Pessoal sem abrir Detalhes; vira "✓" quando já está lá
+                                // (item 6 do feedback de Igor); reusa alternarWatched, que já existe no ViewModel
+                                IconButton(onClick = { onAlternarWatched(item.game.id) }) {
+                                    if (item.game.isWatched) {
+                                        Icon(Icons.Filled.Check, contentDescription = "Já está na lista pessoal")
+                                    } else {
+                                        Icon(Icons.Filled.Add, contentDescription = "Adicionar à lista pessoal")
+                                    }
+                                }
+                            }
                         )
                     }
                 }
@@ -172,7 +187,8 @@ private fun CatalogoConteudoPreview() {
                 id = "2", title = "Hearthfall", releaseDate = "2026-08-15",
                 platforms = listOf(Platform.PS5, Platform.PC), genres = listOf(Genre.RPG),
                 developer = "Crimson Forge", synopsis = "", coverUrl = "",
-                priceUsd = 69.99, priceBrl = 349.90, trailerId = null, preSaleDate = null, anticipationScore = 92
+                priceUsd = 69.99, priceBrl = 349.90, trailerId = null, preSaleDate = null, anticipationScore = 92,
+                isWatched = true // já está na Lista Pessoal — exercita o ícone "✓" no preview
             ),
             dias = 42L // countdown normal
         )
@@ -184,6 +200,7 @@ private fun CatalogoConteudoPreview() {
         ordenacao = CriterioOrdenacao.MAIS_PROXIMOS,
         onFiltroChange = {},
         onOrdenacaoChange = {},
+        onAlternarWatched = {},
         onJogoClick = {}
     )
 }

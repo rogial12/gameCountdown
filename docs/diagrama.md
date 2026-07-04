@@ -898,4 +898,29 @@ ui/lista_pessoal/
 
 ---
 
-*Próximo passo: item 6 — botão "+" nas tiles do Catálogo, para adicionar à Lista Pessoal sem abrir Detalhes.*
+## Passo 26 — Catálogo: botão "+"/"✓" para adicionar à Lista Pessoal (Fase 2)
+
+**O que foi feito:** Item 6 da rodada de feedback. As tiles do Catálogo ganharam um `trailing` no `GameCard`: um `IconButton` que mostra "+" quando o jogo ainda não está na Lista Pessoal, e "✓" quando já está — permitindo adicionar (ou desfazer) sem abrir a tela de Detalhes.
+
+**Decisão de produto (Igor, entre duas opções apresentadas):**
+
+- **Botão alterna com feedback visual**, em vez de só adicionar (idempotente, sem remover por ali). Escolhida a alternância: reusa `alternarWatched(id)` — já existente e testado no `CatalogoViewModel` desde o Passo 5 — em vez de exigir um método novo só de adicionar. Dá também a vantagem de permitir desfazer direto do Catálogo, e o ícone comunica o estado atual do jogo.
+
+**Por quê desta forma (implementação):**
+
+- **Nenhuma lógica nova, nenhum teste novo.** `alternarWatched` já existe e já tem cobertura (inverte `isWatched` via `setWatched`, no-op para id inexistente). Esta mudança é só de wiring: `CatalogoConteudo` ganhou o parâmetro `onAlternarWatched`, repassado pela `CatalogoScreen` como `viewModel::alternarWatched`.
+- **O ícone lê `item.game.isWatched` diretamente** — o campo já vem preenchido do `GameService`/`Repository` (reflete o conjunto de "observados" do mock), sem precisar de estado adicional na tela.
+- **Reusa o slot `trailing` do `GameCard`** (criado no Passo 14 para o switch da Lista Pessoal) — mesma extensão, conteúdo diferente por tela.
+
+### Arquivos alterados
+
+```
+ui/catalogo/
+└── CatalogoScreen.kt   ← ALTERADO: + onAlternarWatched; trailing do GameCard com IconButton "+"/"✓"
+```
+
+**Estado:** itens 1, 2, 3, 6 e 7 do feedback concluídos. Seguem: 4 e 5 (busca), 8 (Detalhes) e 9 (ícone do app).
+
+---
+
+*Próximo passo: item 4 — a busca não deve focar o campo de texto automaticamente ao abrir a aba, só ao tocar nele.*
