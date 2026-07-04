@@ -358,3 +358,29 @@ src/test/ui/catalogo/
 ---
 
 *Próximo passo: ligar o `MainActivity` à `CatalogoScreen`, usando a `CatalogoViewModelFactory` — o momento em que o app finalmente mostra conteúdo de verdade.*
+
+---
+
+## Passo 11 — MainActivity ligada ao Catálogo: o app mostra conteúdo (Fase 2)
+
+**O que foi feito:** Ligação final da tela — o `MainActivity` deixou de exibir o "Hello Android!" do template e passou a exibir a `CatalogoScreen`, criando o `CatalogoViewModel` pela `CatalogoViewModelFactory`. O app foi compilado, instalado no aparelho (Samsung, via Wi-Fi) e executado: o catálogo real do mock aparece, com filtros e ordenação funcionando. **A tela de Catálogo está completa de ponta a ponta.**
+
+**Por quê desta forma:**
+
+- **A Factory monta a cadeia real num único ponto.** O `MainActivity` não conhece `GameServiceImpl` nem `MockGameRepository` — ele só chama `viewModel(factory = CatalogoViewModelFactory())`. É a Factory (o "composition root", criado no Passo 5) que monta `GameServiceImpl(MockGameRepository())` por baixo. Quando a Fase 3 trocar o mock pela API real, só a Factory muda; o `MainActivity`, a tela e o ViewModel ficam intactos.
+- **`viewModel()` em vez de instanciar direto.** Usar a função `viewModel(...)` do `lifecycle-viewmodel-compose` (em vez de `CatalogoViewModel(...)` na mão) faz o ViewModel **sobreviver à rotação de tela** e a outras mudanças de configuração — o estado do catálogo (filtros, lista) não se perde quando o aparelho gira. É o comportamento esperado de um ViewModel de verdade.
+- **Sem `Scaffold` duplicado.** A `CatalogoScreen` já traz o próprio `Scaffold` e a barra de topo (Passo 10), então o `MainActivity` apenas aplica o tema (`GameCountdownTheme`) e coloca a tela dentro — nada de aninhar um segundo `Scaffold`.
+- **Validação de ponta a ponta.** Rodar no aparelho confirmou que toda a cadeia funciona junta: `MockGameRepository` → `GameServiceImpl` (com o desugaring de `java.time` para o countdown) → `CatalogoViewModel` → `CatalogoScreen` e seus componentes. Este era o objetivo central da Fase 2: validar o fluxo e o conceito com dados mockados.
+
+### Arquivos alterados
+
+```
+MainActivity.kt   ← ALTERADO: remove o Greeting/"Hello Android!" do template;
+                    exibe CatalogoScreen com o ViewModel criado pela CatalogoViewModelFactory
+```
+
+**Marco atingido:** a **feature de Catálogo** (a primeira do app) está completa em todas as camadas — modelo → repositório → service → ViewModel → UI → tela rodando no aparelho. Todas as camadas de lógica têm testes unitários; a UI tem componentes previewáveis (testes instrumentados de Compose ficaram reservados para um passo dedicado com emulador).
+
+---
+
+*Próximo passo: a definir com Igor. Opções naturais: (a) a feature de **Lista Pessoal** ("Jogos que estou de olho"), que reaproveita `GameCard` e precisa de um `ListaPessoalViewModel`; (b) a tela de **Detalhes**, onde o `getDaysUntilRelease` e a sinopse/trailer entram, com um `DetalhesViewModel`; (c) expor a **busca** (já existe no Service) no Catálogo; (d) a navegação entre telas, que costura tudo. As três lacunas de ViewModel mapeadas antes do Passo 6 seguem pendentes.*
