@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- camada de fundo do ícone adaptativo: a imagem inteira anexada por Igor (já traz o fundo azul embutido).
-     'drawable-nodpi' porque é uma imagem única (sem variantes por densidade); o Android escala sozinho. -->
-<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:src="@drawable/ic_launcher_photo"
-    android:gravity="center" />
+<!-- camada de fundo do ícone adaptativo: azul sólido (#0083DB, amostrado da imagem anexada por Igor).
+     é essa cor que preenche as bordas do ícone e "continua" o azul da identidade além da figura central,
+     já que o foreground (o jornal 8-bit) fica encolhido na zona segura e não chega até as bordas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#0083DB"
+        android:pathData="M0,0h108v108h-108z" />
+</vector>

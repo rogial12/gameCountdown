@@ -1119,13 +1119,14 @@ src/test/.../ui/detalhes/DetalhesMidiaTest.kt   ← NOVO: 6 testes (montarMidias
 
 **Por quê desta forma:**
 
-- **Ícone adaptativo (`mipmap-anydpi-v26`), não só os PNGs antigos.** O projeto já vinha com a estrutura de ícone adaptativo do Android 8+ (camadas `background`/`foreground` compostas pelo sistema) — se eu só trocasse os PNGs de `mipmap-*` e deixasse o XML adaptativo intacto, aparelhos Android 8+ continuariam mostrando o ícone verde antigo (o XML tem prioridade sobre os PNGs quando existe). Por isso troquei as duas camadas: `ic_launcher_background.xml` virou um `<bitmap>` apontando pra imagem inteira (que já traz o fundo azul embutido), e `ic_launcher_foreground.xml` virou um retângulo totalmente transparente — colocar a mesma imagem nas duas camadas duplicaria o desenho.
-- **A imagem entrou como um recurso `drawable-nodpi`** (`ic_launcher_photo.png`, cópia fiel dos 400×400 originais) — "nodpi" diz ao Android para não escalar por densidade, correto para um recurso único (a imagem já tem resolução suficiente para a maior densidade comum, xxxhdpi).
-- **PNGs redimensionados por densidade continuam existindo** (`mipmap-mdpi` 48px, `hdpi` 72px, `xhdpi` 96px, `xxhdpi` 144px, `xxxhdpi` 192px, gerados a partir da mesma imagem via `System.Drawing` do .NET, com interpolação bicúbica), substituindo os `.webp` do template — são o que aparelhos com Android 7 ou anterior (API < 26, ainda dentro do `minSdk 24`) usam, já que esses não entendem o formato de ícone adaptativo.
-- **A camada `<monochrome>` (ícone temático do Android 13+) foi removida dos dois XMLs adaptativos.** Ela existia apontando pro foreground antigo (o logo do Android); como o foreground agora é transparente, deixá-la seria mostrar um ícone em branco no modo temático. Sem essa linha, o Android simplesmente não oferece a variante temática pra este app — volta a mostrar o ícone normal. Aceitável para o protótipo; pode ganhar uma versão monocromática própria no futuro, se fizer sentido.
-- **O arquivo original permanece em `docs/`** (decisão de Igor) como referência fora da árvore de recursos do Android, mesmo com uma cópia idêntica já vivendo em `drawable-nodpi/`.
+- **Ícone adaptativo (`mipmap-anydpi-v26`), não só os PNGs antigos.** O projeto já vinha com a estrutura de ícone adaptativo do Android 8+ (camadas `background`/`foreground` compostas pelo sistema) — se eu só trocasse os PNGs de `mipmap-*` e deixasse o XML adaptativo intacto, aparelhos Android 8+ continuariam mostrando o ícone verde antigo (o XML tem prioridade sobre os PNGs quando existe).
+- **A "safe zone" foi a correção principal (feita numa segunda passada, após Igor apontar o enquadramento).** Um ícone adaptativo tem viewport de 108dp, mas o launcher **recorta as bordas** e só garante a exibição dos ~66dp centrais (o resto pode ser cortado pela máscara — círculo, squircle, etc.). A primeira versão colocava a imagem inteira preenchendo os 108dp (via `<bitmap>` no background), então o launcher cortava justamente a margem azul da identidade e deixava o jornal grande e "ampliado" no centro. Corrigido separando as duas camadas pela função que cada uma tem no formato: **`background` = azul sólido** (`#0083DB`, cor amostrada da própria imagem) e **`foreground` = a imagem encolhida a 70%, centralizada num canvas transparente** — assim o jornal fica dentro da zona segura e o azul ao redor é "continuado" pelo background, sobrevivendo a qualquer máscara. Como o azul do background é o mesmo da imagem, a junção é imperceptível.
+- **O `foreground` é um PNG (`drawable-nodpi/ic_launcher_foreground.png`, 432×432 com padding transparente), não um vetor.** Precisa do padding transparente ao redor da imagem para respeitar a safe zone — algo que o `<bitmap>` com `gravity=center` de um recurso sem padding não faria (ele preencheria o viewport e voltaria ao problema do recorte). "nodpi" porque é um recurso único, já em resolução suficiente para a maior densidade.
+- **PNGs por densidade** (`mipmap-mdpi` 48px … `xxxhdpi` 192px) foram recompostos com o **fundo azul + a imagem a 90%** (gerados via `System.Drawing` do .NET, interpolação bicúbica), substituindo os `.webp` do template — são o que aparelhos Android 7 ou anterior (API < 26, dentro do `minSdk 24`) usam, já que não entendem ícone adaptativo. Usam 90% (não 70%) porque não sofrem o recorte agressivo do adaptive.
+- **A camada `<monochrome>` (ícone temático do Android 13+) foi removida dos dois XMLs adaptativos.** Ela apontava pro foreground antigo (o logo do Android); manter apontando pro novo foreground colorido produziria um ícone temático incorreto (o modo monocromático espera uma silhueta, não uma foto). Sem a linha, o Android não oferece a variante temática — volta ao ícone normal. Aceitável no protótipo; pode ganhar uma silhueta monocromática própria depois.
+- **O arquivo original permanece em `docs/`** (decisão de Igor) como referência fora da árvore de recursos do Android.
 
-**Validação:** `./gradlew assembleDebug` completo (não só `compileDebugKotlin`) — importante aqui porque troca de recurso (drawable/mipmap) é processada pelo AAPT2 na fase de *build*, não pelo compilador Kotlin; um erro de XML ou referência quebrada só apareceria nesse passo.
+**Validação:** `./gradlew assembleDebug` completo (não só `compileDebugKotlin`) — troca de recurso (drawable/mipmap) é processada pelo AAPT2 na fase de *build*, não pelo compilador Kotlin; erro de XML ou referência quebrada só apareceria nesse passo. Além disso, uma prévia da composição final (background azul + foreground, com máscara circular = pior caso) foi renderizada e conferida: o jornal aparece inteiro e centralizado, com azul preservado ao redor.
 
 ### Arquivos criados/alterados
 
@@ -1133,18 +1134,30 @@ src/test/.../ui/detalhes/DetalhesMidiaTest.kt   ← NOVO: 6 testes (montarMidias
 docs/njFr9lBi_400x400.jpg                        ← já adicionado por Igor (mantido como referência)
 
 app/src/main/res/
-├── drawable-nodpi/ic_launcher_photo.png         ← NOVO: a imagem em resolução original (400x400)
-├── drawable/ic_launcher_background.xml          ← ALTERADO: de vetor placeholder para <bitmap> da imagem
-├── drawable/ic_launcher_foreground.xml           ← ALTERADO: de vetor placeholder para retângulo transparente
+├── drawable-nodpi/ic_launcher_foreground.png    ← NOVO: imagem a 70% em canvas transparente (respeita a safe zone)
+├── drawable/ic_launcher_background.xml          ← ALTERADO: vetor de cor azul sólida (#0083DB)
+├── drawable/ic_launcher_foreground.xml          ← REMOVIDO: o PNG acima assume o nome de recurso ic_launcher_foreground
 ├── mipmap-anydpi-v26/ic_launcher.xml            ← ALTERADO: remove a camada <monochrome>
 ├── mipmap-anydpi-v26/ic_launcher_round.xml      ← ALTERADO: idem
 └── mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/
-    ├── ic_launcher.png                          ← NOVO: substitui ic_launcher.webp do template (removido)
-    └── ic_launcher_round.png                    ← NOVO: substitui ic_launcher_round.webp do template (removido)
+    ├── ic_launcher.png                          ← NOVO: fundo azul + imagem a 90% (substitui o .webp do template, removido)
+    └── ic_launcher_round.png                    ← NOVO: idem
 ```
 
 **Estado: rodada de feedback pós-protótipo concluída por inteiro** — os 9 apontamentos de Igor (itens 1–9), mais o bug de sincronismo entre telas descoberto no meio do caminho (Passo 27), estão implementados, testados e documentados.
 
 ---
 
-*Próximo passo: a definir com Igor — validar o protótipo inteiro no aparelho de ponta a ponta com os ajustes desta rodada, ou seguir para a próxima frente de trabalho da Fase 2/Fase 3.*
+## Pendências para conclusão da Fase 2
+
+O núcleo da Fase 2 (protótipo) está completo: app com dados mockados respeitando o contrato de API, todas as telas validando o fluxo/conceito, testes unitários ativos, SOLID + Repository + Services + diagrama vivo. Restam **toques finais** antes de declarar a fase encerrada:
+
+- [ ] **Testes instrumentados de feature** (`src/androidTest/`) — validação final na tela real, conforme a política de dois níveis definida no Passo 23. Hoje só existe o *template* (`GameCardInstrumentedTest`); faltam os das features concluídas: **Catálogo**, **Lista Pessoal**, **Detalhes** e **Busca**. Cada um é lento (~70s, roda no aparelho físico SM-S908E) — o Claude **pede permissão a Igor antes de executar** cada um (`connectedDebugAndroidTest`), como combinado no Passo 23.
+- [ ] **Validação manual de ponta a ponta no aparelho** — Igor rodar o protótipo com todos os ajustes desta rodada (Passos 24–32) e confirmar que o conjunto está redondo. É teste do dono do projeto, não do Claude.
+- [ ] **(Opcional, decisão de Igor) Spike mínimo de widget Glance** — versão só com capa + countdown, para validar cedo o pipeline Repository → widget. A spec só recomenda acionar esse spike **se** a pesquisa da Fase 1 sobre restrições do Glance tiver indicado risco real de incompatibilidade de dados; sem esse sinal, segue-se direto para a Fase 3. Requer confirmação de Igor sobre o que aquela pesquisa concluiu.
+
+Não são pendências (decisões conscientes, reservadas para fases futuras e já documentadas): os estados `carregando`/`mensagemErro` não desenhados no Catálogo (Fase 3, quando a fonte real for assíncrona) e o botão "Comprar" sem ação na seção "Onde comprar" (Fase 6, links de afiliado).
+
+---
+
+*Próximo passo: a definir com Igor — começar pelos testes instrumentados de feature (um por feature, pedindo permissão antes de rodar), esclarecer o spike de widget, ou seguir para a Fase 3.*

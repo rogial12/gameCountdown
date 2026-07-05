@@ -1,6 +1,0 @@
-<!-- camada de frente do ícone adaptativo: fica transparente de propósito — a imagem anexada por Igor
-     já contém o ícone inteiro (fundo + desenho), então ela sozinha vai na camada de fundo (ver
-     ic_launcher_background.xml). Duas camadas com a mesma imagem duplicariam o desenho. -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#00000000" />
-</shape>
