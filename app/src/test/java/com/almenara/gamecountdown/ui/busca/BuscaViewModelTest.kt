@@ -6,6 +6,7 @@ import com.almenara.gamecountdown.data.model.Platform // enum de plataformas
 import com.almenara.gamecountdown.data.service.CriterioOrdenacao // exigido pela assinatura do fake
 import com.almenara.gamecountdown.data.service.FiltroCatalogo    // exigido pela assinatura do fake
 import com.almenara.gamecountdown.data.service.GameService       // interface que o fake abaixo implementa
+import com.almenara.gamecountdown.data.service.SearchHistoryService // interface do outro fake abaixo
 import org.junit.Assert.assertEquals // verifica se dois valores são iguais
 import org.junit.Assert.assertTrue   // verifica se uma condição é verdadeira
 import org.junit.Before              // marca o método que roda antes de cada teste
@@ -23,6 +24,26 @@ private class FakeGameService(private val jogos: List<Game>) : GameService {
     override fun getDaysUntilRelease(game: Game): Long = game.id.toLong()
 }
 
+// fake do SearchHistoryService: guarda o histórico em memória, com a mesma regra de "sem duplicata, mais recente
+// no topo" (simplificada) só o suficiente para testar que o ViewModel repassa e reflete o que o Service devolve —
+// a regra de negócio de verdade (dedup, limite) já é testada em SearchHistoryServiceImplTest
+private class FakeSearchHistoryService(historicoInicial: List<String> = emptyList()) : SearchHistoryService {
+    private var historico: List<String> = historicoInicial
+    var chamadasLimpar = 0 // conta quantas vezes limpar() foi chamado
+
+    override fun getHistorico(): List<String> = historico
+
+    override fun adicionar(query: String) {
+        if (query.isBlank()) return
+        historico = listOf(query) + historico.filterNot { it == query }
+    }
+
+    override fun limpar() {
+        chamadasLimpar++
+        historico = emptyList()
+    }
+}
+
 // classe de testes do BuscaViewModel
 class BuscaViewModelTest {
 
@@ -31,11 +52,13 @@ class BuscaViewModelTest {
         gameFake(id = "2", title = "Zeta Storm")
     )
 
+    private lateinit var fakeHistoryService: FakeSearchHistoryService
     private lateinit var viewModel: BuscaViewModel
 
     @Before
     fun setUp() {
-        viewModel = BuscaViewModel(FakeGameService(jogos))
+        fakeHistoryService = FakeSearchHistoryService()
+        viewModel = BuscaViewModel(FakeGameService(jogos), fakeHistoryService)
     }
 
     // ao criar, sem nada digitado, o estado começa vazio (a tela mostra a dica de "busque um jogo")
@@ -76,6 +99,36 @@ class BuscaViewModelTest {
         val estado = viewModel.uiState.value
         assertEquals("xyz", estado.query)
         assertTrue(estado.resultados.isEmpty())
+    }
+
+    // ao ser criado, o ViewModel deve carregar o histórico já salvo (independente de haver busca em andamento)
+    @Test
+    fun `init carrega o historico ja salvo`() {
+        val historicoPreExistente = FakeSearchHistoryService(listOf("hearthfall", "iron"))
+        val vm = BuscaViewModel(FakeGameService(jogos), historicoPreExistente)
+
+        assertEquals(listOf("hearthfall", "iron"), vm.uiState.value.historico)
+    }
+
+    // registrarBuscaSelecionada deve adicionar a query ATUAL ao histórico e atualizar o estado
+    @Test
+    fun `registrarBuscaSelecionada adiciona a busca atual ao historico`() {
+        viewModel.buscar("alpha")
+        viewModel.registrarBuscaSelecionada()
+
+        assertEquals(listOf("alpha"), viewModel.uiState.value.historico)
+    }
+
+    // limparHistorico deve esvaziar o histórico no estado e repassar ao Service
+    @Test
+    fun `limparHistorico esvazia o historico no estado`() {
+        viewModel.buscar("alpha")
+        viewModel.registrarBuscaSelecionada()
+
+        viewModel.limparHistorico()
+
+        assertTrue(viewModel.uiState.value.historico.isEmpty())
+        assertEquals(1, fakeHistoryService.chamadasLimpar)
     }
 }
 

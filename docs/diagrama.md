@@ -970,4 +970,68 @@ src/test/.../ui/catalogo/CatalogoViewModelFactoryTest.kt   ← ALTERADO: fake at
 
 ---
 
-*Próximo passo: item 4 — a busca não deve focar o campo de texto automaticamente ao abrir a aba, só ao tocar nele.*
+## Passo 28 — Busca: foco em duas etapas (Fase 2)
+
+**O que foi feito:** Item 4 da rodada de feedback. A caixa de busca não foca mais (nem sobe o teclado) automaticamente ao abrir a aba — só ao ser tocada, como qualquer `TextField` comum. Removido o `FocusRequester` + `LaunchedEffect(Unit) { requestFocus() }` que forçavam o foco na primeira composição da tela.
+
+**Por quê desta forma:**
+
+- **Fluxo em duas etapas era pedido explícito de Igor:** toque na aba → toque no campo. Um `TextField` sem nenhum código de foco já se comporta assim por padrão no Compose; o bug era justamente o código extra que *forçava* o foco antes da hora.
+- **Nenhuma lógica nova, nenhum teste novo.** Mudança puramente de UI (remoção de efeito); `BuscaViewModel`/`BuscaUiState` não foram tocados.
+
+### Arquivos alterados
+
+```
+ui/busca/
+└── BuscaScreen.kt   ← ALTERADO: remove FocusRequester/LaunchedEffect de foco automático
+```
+
+**Estado:** itens 1, 2, 3, 4, 6 e 7 do feedback concluídos, mais o bug de sincronismo (Passo 27). Seguem: 5 (histórico de buscas), 8 (Detalhes) e 9 (ícone do app).
+
+---
+
+## Passo 29 — Histórico de buscas (Fase 2)
+
+**O que foi feito:** Item 5 da rodada de feedback — a primeira feature genuinamente nova desta rodada (as demais eram ajustes sobre telas existentes). A tela de Busca passou a guardar e exibir um histórico das buscas do usuário, tocável (refaz a busca) e com opção de limpar. Feito em 4 camadas, cada uma confirmada com Igor antes de avançar para a próxima: Repository → Service → ViewModel → UI.
+
+**Decisões de produto (Igor, entre opções apresentadas):**
+
+- **Quando salvar:** só quando o usuário toca um resultado da busca — não a cada tecla digitada (o campo filtra em tempo real; salvar tecla a tecla geraria entradas como "i", "ir", "iro"). Um toque num resultado é o sinal de que a busca "deu certo".
+- **Limite e limpeza:** histórico limitado a 10 buscas, sem duplicatas (repetir uma busca já existente move ela pro topo em vez de duplicar), com botão "Limpar" na tela.
+
+**Por quê desta forma (por camada):**
+
+- **Repository (`SearchHistoryRepository` + `InMemorySearchHistoryRepository`):** propositalmente "burro" — só guarda e devolve a lista tal como está (`getHistorico`/`salvarHistorico`), sem regra nenhuma. Fica fora de `repository/mock/` porque não finge ser uma API — é uma implementação real, só que volátil (não sobrevive ao fechar o app); Fase 3+ deve trocá-la por algo persistente (ex.: DataStore) sem tocar no Service nem na UI. Mesma separação dado-cru/regra-de-negócio já usada entre `GameRepository` e `GameServiceImpl`.
+- **Service (`SearchHistoryService` + `SearchHistoryServiceImpl`):** concentra toda a regra de negócio — ignora busca em branco, remove duplicata (comparação sem diferenciar maiúsculas/minúsculas), insere a busca atual no topo, corta no limite configurável (padrão 10). 8 testes cobrem cada regra isoladamente, incluindo o corte no limite (testado com `limite = 3` para não precisar de 10 chamadas por teste).
+- **ViewModel (`BuscaViewModel`):** ganhou a segunda dependência (`SearchHistoryService`, ao lado do `GameService` já existente) e carrega o histórico no `init` — independente de haver uma busca em andamento, já que a tela pode abrir com o campo vazio e o histórico deve aparecer. Dois métodos novos: `registrarBuscaSelecionada()` (adiciona a query ATUAL ao histórico; chamado quando um resultado é tocado) e `limparHistorico()`. `AppContainer` ganhou `searchHistoryService` como instância compartilhada, mesmo padrão do `gameService` — hoje só a Busca usa, mas evita repetir o erro que motivou centralizar o `gameService` ali, caso outra tela precise do histórico no futuro.
+- **UI (`BuscaScreen`):** quando o campo está vazio, a tela mostra o histórico (se houver) no lugar da dica "Busque um jogo pelo título" — cada busca salva é uma linha tocável (`ListItem` + `clickable`) que refaz aquela busca, com um cabeçalho "Buscas recentes" + botão "Limpar" no topo da lista. O toque num resultado da busca passou a, além de navegar para os Detalhes (como antes), chamar `registrarBuscaSelecionada()` primeiro — por isso o callback de clique do `GameCard` foi composto na `BuscaScreen` (`{ id -> viewModel.registrarBuscaSelecionada(); onJogoClick(id) }`), mantendo o `BuscaConteudo` sem estado.
+
+### Arquivos criados/alterados
+
+```
+data/repository/
+├── SearchHistoryRepository.kt              ← NOVO: interface (getHistorico/salvarHistorico)
+└── InMemorySearchHistoryRepository.kt      ← NOVO: implementação em memória
+
+data/service/
+├── SearchHistoryService.kt                 ← NOVO: interface (getHistorico/adicionar/limpar)
+└── SearchHistoryServiceImpl.kt             ← NOVO: dedup + mover pro topo + limite (padrão 10)
+
+di/AppContainer.kt                          ← ALTERADO: + searchHistoryService compartilhado
+
+ui/busca/
+├── BuscaUiState.kt         ← ALTERADO: + historico: List<String>
+├── BuscaViewModel.kt       ← ALTERADO: + SearchHistoryService; init carrega histórico; registrarBuscaSelecionada/limparHistorico
+├── BuscaViewModelFactory.kt ← ALTERADO: injeta searchHistoryService do AppContainer
+└── BuscaScreen.kt          ← ALTERADO: HistoricoBuscas (lista tocável + "Limpar"); toque em resultado registra a busca
+
+src/test/.../data/repository/InMemorySearchHistoryRepositoryTest.kt ← NOVO: 2 testes
+src/test/.../data/service/SearchHistoryServiceImplTest.kt           ← NOVO: 8 testes
+src/test/.../ui/busca/BuscaViewModelTest.kt                         ← ALTERADO: +3 testes + FakeSearchHistoryService
+```
+
+**Estado:** itens 1, 2, 3, 4, 5, 6 e 7 do feedback concluídos, mais o bug de sincronismo (Passo 27). Seguem: 8 (Detalhes) e 9 (ícone do app).
+
+---
+
+*Próximo passo: item 8 — carrossel de mídia, destaque no countdown e seção "Onde comprar" na tela de Detalhes.*

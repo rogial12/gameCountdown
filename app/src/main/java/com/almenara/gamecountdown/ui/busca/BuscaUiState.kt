@@ -12,5 +12,6 @@ data class JogoBusca(
 // data class: tudo que a tela de Busca precisa para se desenhar num dado momento.
 data class BuscaUiState(
     val query: String = "",                        // texto digitado; vazio = ainda não buscou (mostra a dica)
-    val resultados: List<JogoBusca> = emptyList()  // jogos que casam com o texto (por título)
+    val resultados: List<JogoBusca> = emptyList(), // jogos que casam com o texto (por título)
+    val historico: List<String> = emptyList()      // buscas anteriores, mais recente primeiro; exibido quando query está vazia
 )

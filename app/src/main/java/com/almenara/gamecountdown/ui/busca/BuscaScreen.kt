@@ -1,8 +1,10 @@
 package com.almenara.gamecountdown.ui.busca // pacote da feature de busca dedicada
 
+import androidx.compose.foundation.clickable // torna uma linha do histórico tocável
 import androidx.compose.foundation.layout.Arrangement // define o espaçamento entre os itens da lista
 import androidx.compose.foundation.layout.Box // container para centralizar as mensagens (dica / sem resultados)
 import androidx.compose.foundation.layout.PaddingValues // espaçamento ao redor do conteúdo da lista
+import androidx.compose.foundation.layout.Row // organiza o cabeçalho "Buscas recentes" + botão "Limpar" lado a lado
 import androidx.compose.foundation.layout.WindowInsets // zera os insets do Scaffold interno (o externo cuida deles)
 import androidx.compose.foundation.layout.fillMaxSize // ocupa todo o espaço disponível
 import androidx.compose.foundation.layout.fillMaxWidth // faz o campo de busca ocupar toda a largura da barra de topo
@@ -14,22 +16,20 @@ import androidx.compose.material.icons.filled.Close // ícone de "limpar" (X) do
 import androidx.compose.material.icons.filled.Search // ícone de lupa (decorativo, no campo)
 import androidx.compose.material3.ExperimentalMaterial3Api // a TopAppBar ainda é API experimental do Material 3
 import androidx.compose.material3.Icon // desenha um ícone vetorial
-import androidx.compose.material3.IconButton // botão que contém só um ícone (o "limpar")
+import androidx.compose.material3.IconButton // botão que contém só um ícone (o "limpar" do campo)
+import androidx.compose.material3.ListItem // linha padrão do Material 3 para cada busca do histórico
 import androidx.compose.material3.MaterialTheme // acesso ao tema (cores, tipografia)
 import androidx.compose.material3.Scaffold // estrutura básica de tela
 import androidx.compose.material3.Text // desenha texto
+import androidx.compose.material3.TextButton // botão de texto (o "Limpar" do histórico)
 import androidx.compose.material3.TextField // campo de texto editável (a caixa de busca)
 import androidx.compose.material3.TextFieldDefaults // cores padrão do TextField, aqui deixadas transparentes
 import androidx.compose.material3.TopAppBar // barra de topo (que aqui hospeda o campo de busca)
 import androidx.compose.runtime.Composable // marca uma função como componente de UI do Compose
-import androidx.compose.runtime.LaunchedEffect // roda um efeito uma vez ao entrar na tela (focar o campo)
 import androidx.compose.runtime.collectAsState // observa um StateFlow e recompõe quando o estado muda
 import androidx.compose.runtime.getValue // habilita ler o estado observado com 'by' (delegação)
-import androidx.compose.runtime.remember // preserva o FocusRequester entre recomposições
-import androidx.compose.ui.Alignment // centraliza as mensagens
+import androidx.compose.ui.Alignment // centraliza as mensagens / alinha o cabeçalho do histórico
 import androidx.compose.ui.Modifier // descreve ajustes de layout/aparência
-import androidx.compose.ui.focus.FocusRequester // permite pedir o foco para o campo ao abrir a tela
-import androidx.compose.ui.focus.focusRequester // modifier que liga o FocusRequester ao campo
 import androidx.compose.ui.graphics.Color // usado para deixar fundo/linha do campo transparentes
 import androidx.compose.ui.tooling.preview.Preview // visualiza o componente no editor sem rodar o app
 import androidx.compose.ui.unit.dp // unidade de distância independente de densidade
@@ -39,7 +39,8 @@ import com.almenara.gamecountdown.data.model.Platform // enum de plataformas; us
 import com.almenara.gamecountdown.ui.comum.GameCard // componente que exibe um jogo na lista (Passo 8)
 
 // BuscaScreen: a tela de Busca "com estado" — conecta a UI ao BuscaViewModel.
-// o campo de busca fica na barra de topo (foca automaticamente ao abrir a aba); os resultados vêm abaixo.
+// o campo de busca fica na barra de topo; o foco (e o teclado) só aparecem quando o usuário toca nele —
+// fluxo em duas etapas (toque na aba -> toque no campo), não mais automático ao abrir (item 4 do feedback de Igor).
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BuscaScreen(
@@ -49,10 +50,6 @@ fun BuscaScreen(
 ) {
     // observa o estado (texto + resultados)
     val uiState by viewModel.uiState.collectAsState()
-
-    // ao abrir a aba, foca o campo de busca (já sobe o teclado)
-    val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     Scaffold(
         modifier = modifier,
@@ -75,9 +72,7 @@ fun BuscaScreen(
                                 }
                             }
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester),    // liga ao pedido de foco automático
+                        modifier = Modifier.fillMaxWidth(),
                         // fundo e linha transparentes para o campo se integrar à barra de topo
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
@@ -92,23 +87,40 @@ fun BuscaScreen(
     ) { innerPadding ->
         BuscaConteudo(
             uiState = uiState,
-            onJogoClick = onJogoClick,
+            onBuscarHistorico = viewModel::buscar,       // toca um item do histórico -> refaz aquela busca
+            onLimparHistorico = viewModel::limparHistorico,
+            onJogoClick = { id ->
+                viewModel.registrarBuscaSelecionada() // a busca "deu certo": entra pro histórico
+                onJogoClick(id)                        // e navega para os Detalhes, como antes
+            },
             modifier = Modifier.padding(innerPadding)
         )
     }
 }
 
-// BuscaConteudo: o corpo da tela "sem estado". Mostra uma dica (sem texto), "nenhum resultado" ou a lista.
+// BuscaConteudo: o corpo da tela "sem estado". Mostra o histórico (ou uma dica, se ele estiver vazio),
+// "nenhum resultado" ou a lista de resultados — conforme o texto digitado e o que o Service devolveu.
 @Composable
 private fun BuscaConteudo(
-    uiState: BuscaUiState,             // texto atual + resultados
-    onJogoClick: (String) -> Unit,     // emite o id do jogo tocado
+    uiState: BuscaUiState,                     // texto atual + resultados + histórico
+    onBuscarHistorico: (String) -> Unit,       // emite a query escolhida no histórico, pra refazer a busca
+    onLimparHistorico: () -> Unit,             // pede pra apagar o histórico inteiro
+    onJogoClick: (String) -> Unit,             // emite o id do jogo tocado num resultado
     modifier: Modifier = Modifier
 ) {
     when {
-        // ainda não digitou nada: mostra uma dica central
+        // ainda não digitou nada: mostra o histórico de buscas, se houver; senão, a dica de sempre
         uiState.query.isBlank() -> {
-            MensagemCentral(texto = "Busque um jogo pelo título", modifier = modifier)
+            if (uiState.historico.isEmpty()) {
+                MensagemCentral(texto = "Busque um jogo pelo título", modifier = modifier)
+            } else {
+                HistoricoBuscas(
+                    historico = uiState.historico,
+                    onSelecionar = onBuscarHistorico,
+                    onLimpar = onLimparHistorico,
+                    modifier = modifier
+                )
+            }
         }
         // digitou, mas nada casou: mostra "nenhum resultado"
         uiState.resultados.isEmpty() -> {
@@ -129,6 +141,40 @@ private fun BuscaConteudo(
                     )
                 }
             }
+        }
+    }
+}
+
+// HistoricoBuscas: lista de buscas anteriores, mais recente primeiro — cada uma tocável, pra refazer a busca.
+// aparece só quando o campo está vazio E já existe pelo menos uma busca salva (item 5 do feedback de Igor).
+@Composable
+private fun HistoricoBuscas(
+    historico: List<String>,       // as queries salvas, na ordem em que devem aparecer
+    onSelecionar: (String) -> Unit, // toca uma busca -> refaz ela
+    onLimpar: () -> Unit,          // toca "Limpar" -> apaga o histórico inteiro
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(modifier = modifier.fillMaxSize()) {
+        // cabeçalho fixo como primeiro item da lista: título + botão de limpar lado a lado
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Buscas recentes", style = MaterialTheme.typography.titleSmall)
+                TextButton(onClick = onLimpar) { Text("Limpar") }
+            }
+        }
+        // uma linha por busca salva; tocar refaz aquela busca (mesmo efeito de digitá-la de novo)
+        items(historico) { query ->
+            ListItem(
+                headlineContent = { Text(query) },
+                leadingContent = { Icon(Icons.Filled.Search, contentDescription = null) },
+                modifier = Modifier.clickable { onSelecionar(query) }
+            )
         }
     }
 }
@@ -159,5 +205,13 @@ private fun BuscaConteudoPreview() {
             )
         )
     )
-    BuscaConteudo(uiState = estado, onJogoClick = {})
+    BuscaConteudo(uiState = estado, onBuscarHistorico = {}, onLimparHistorico = {}, onJogoClick = {})
+}
+
+// @Preview: mostra o histórico de buscas (campo vazio, mas com buscas anteriores salvas), sem precisar de ViewModel.
+@Preview
+@Composable
+private fun BuscaConteudoHistoricoPreview() {
+    val estado = BuscaUiState(historico = listOf("hearthfall", "iron", "neon samurai"))
+    BuscaConteudo(uiState = estado, onBuscarHistorico = {}, onLimparHistorico = {}, onJogoClick = {})
 }
