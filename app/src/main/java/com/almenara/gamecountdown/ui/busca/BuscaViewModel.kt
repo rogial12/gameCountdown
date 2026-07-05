@@ -25,7 +25,19 @@ class BuscaViewModel(
 
     // ao ser criado, já carrega o histórico salvo (independente de haver alguma busca em andamento)
     init {
-        _uiState.update { it.copy(historico = searchHistoryService.getHistorico()) }
+        carregarHistorico()
+    }
+
+    // resolve cada entrada crua do histórico (query + gameId) num HistoricoBuscaItem pronto pra tela:
+    // busca o jogo pelo id e calcula os dias; se o jogo não existir mais no catálogo, 'jogo' fica null
+    // e a tela cai no fallback textual (mostra só a query) — regra pedida por Igor
+    private fun carregarHistorico() {
+        val historico = searchHistoryService.getHistorico().map { entrada ->
+            val jogo = gameService.getGameById(entrada.gameId)
+                ?.let { game -> JogoBusca(game, gameService.getDaysUntilRelease(game)) }
+            HistoricoBuscaItem(query = entrada.query, jogo = jogo)
+        }
+        _uiState.update { it.copy(historico = historico) }
     }
 
     // atualiza o texto buscado e recalcula os resultados
@@ -41,17 +53,20 @@ class BuscaViewModel(
         _uiState.update { it.copy(query = query, resultados = resultados) }
     }
 
-    // chamado quando o usuário toca um resultado da busca: é o sinal de que a busca "deu certo",
-    // então a query atual entra pro histórico (o toque no resultado em si é tratado por quem chama a tela,
-    // que ainda navega para os Detalhes — este método só cuida do histórico)
-    fun registrarBuscaSelecionada() {
-        searchHistoryService.adicionar(_uiState.value.query)
-        _uiState.update { it.copy(historico = searchHistoryService.getHistorico()) }
+    // chamado quando o usuário toca um resultado (da busca OU de uma tile já presente no histórico):
+    // é o sinal de que aquele jogo foi "selecionado", então ele entra/sobe no histórico, guardando a
+    // query atual como fallback. Se a query estiver em branco (toque veio de uma tile do histórico,
+    // não de uma busca nova), o SearchHistoryService ignora a chamada — a entrada já existe, não precisa
+    // de query nova pra guardar. O toque em si é tratado por quem chama a tela, que ainda navega
+    // para os Detalhes — este método só cuida do histórico.
+    fun registrarBuscaSelecionada(gameId: String) {
+        searchHistoryService.adicionar(_uiState.value.query, gameId)
+        carregarHistorico()
     }
 
     // apaga todo o histórico de buscas e atualiza o estado para refletir a lista vazia
     fun limparHistorico() {
         searchHistoryService.limpar()
-        _uiState.update { it.copy(historico = emptyList()) }
+        carregarHistorico()
     }
 }

@@ -90,8 +90,8 @@ fun BuscaScreen(
             onBuscarHistorico = viewModel::buscar,       // toca um item do histórico -> refaz aquela busca
             onLimparHistorico = viewModel::limparHistorico,
             onJogoClick = { id ->
-                viewModel.registrarBuscaSelecionada() // a busca "deu certo": entra pro histórico
-                onJogoClick(id)                        // e navega para os Detalhes, como antes
+                viewModel.registrarBuscaSelecionada(id) // aquele jogo entra/sobe no histórico
+                onJogoClick(id)                          // e navega para os Detalhes, como antes
             },
             modifier = Modifier.padding(innerPadding)
         )
@@ -116,7 +116,8 @@ private fun BuscaConteudo(
             } else {
                 HistoricoBuscas(
                     historico = uiState.historico,
-                    onSelecionar = onBuscarHistorico,
+                    onSelecionarJogo = onJogoClick,       // tocar uma tile de jogo -> mesmo caminho de um resultado normal
+                    onBuscarFallback = onBuscarHistorico, // tocar um fallback de texto -> refaz aquela busca
                     onLimpar = onLimparHistorico,
                     modifier = modifier
                 )
@@ -145,16 +146,24 @@ private fun BuscaConteudo(
     }
 }
 
-// HistoricoBuscas: lista de buscas anteriores, mais recente primeiro — cada uma tocável, pra refazer a busca.
-// aparece só quando o campo está vazio E já existe pelo menos uma busca salva (item 5 do feedback de Igor).
+// HistoricoBuscas: lista dos jogos selecionados em buscas anteriores, mais recente primeiro — cada um exibido
+// como a MESMA tile (GameCard) usada nos resultados normais (decisão de Igor: o histórico é de jogos, não de
+// texto). Só quando o jogo referenciado não existe mais no catálogo é que a linha cai no fallback: o termo
+// que foi buscado, como texto simples tocável (refaz aquela busca em vez de abrir um jogo que já não existe).
+// aparece só quando o campo está vazio E já existe pelo menos uma entrada salva (item 5 do feedback de Igor).
 @Composable
 private fun HistoricoBuscas(
-    historico: List<String>,       // as queries salvas, na ordem em que devem aparecer
-    onSelecionar: (String) -> Unit, // toca uma busca -> refaz ela
-    onLimpar: () -> Unit,          // toca "Limpar" -> apaga o histórico inteiro
+    historico: List<HistoricoBuscaItem>, // as entradas salvas, na ordem em que devem aparecer
+    onSelecionarJogo: (String) -> Unit,   // toca a tile de um jogo -> emite o id (mesmo caminho de um resultado)
+    onBuscarFallback: (String) -> Unit,   // toca um fallback de texto -> refaz aquela busca
+    onLimpar: () -> Unit,                 // toca "Limpar" -> apaga o histórico inteiro
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(modifier = modifier.fillMaxSize()) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
         // cabeçalho fixo como primeiro item da lista: título + botão de limpar lado a lado
         item {
             Row(
@@ -168,13 +177,24 @@ private fun HistoricoBuscas(
                 TextButton(onClick = onLimpar) { Text("Limpar") }
             }
         }
-        // uma linha por busca salva; tocar refaz aquela busca (mesmo efeito de digitá-la de novo)
-        items(historico) { query ->
-            ListItem(
-                headlineContent = { Text(query) },
-                leadingContent = { Icon(Icons.Filled.Search, contentDescription = null) },
-                modifier = Modifier.clickable { onSelecionar(query) }
-            )
+        // uma entrada por busca salva: tile do jogo (se ele ainda existir) ou o fallback de texto
+        items(historico, key = { it.jogo?.game?.id ?: it.query }) { entrada ->
+            val jogo = entrada.jogo
+            if (jogo != null) {
+                GameCard(
+                    game = jogo.game,
+                    dias = jogo.dias,
+                    onClick = { onSelecionarJogo(jogo.game.id) },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+            } else {
+                // fallback: o jogo não existe mais no catálogo — mostra só o termo que foi buscado
+                ListItem(
+                    headlineContent = { Text(entrada.query) },
+                    leadingContent = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    modifier = Modifier.clickable { onBuscarFallback(entrada.query) }
+                )
+            }
         }
     }
 }
@@ -208,10 +228,27 @@ private fun BuscaConteudoPreview() {
     BuscaConteudo(uiState = estado, onBuscarHistorico = {}, onLimparHistorico = {}, onJogoClick = {})
 }
 
-// @Preview: mostra o histórico de buscas (campo vazio, mas com buscas anteriores salvas), sem precisar de ViewModel.
+// @Preview: mostra o histórico de buscas (campo vazio, mas com entradas salvas), sem precisar de ViewModel.
+// inclui um jogo resolvido (mostra a tile) e um fallback (jogo que não existe mais no catálogo).
 @Preview
 @Composable
 private fun BuscaConteudoHistoricoPreview() {
-    val estado = BuscaUiState(historico = listOf("hearthfall", "iron", "neon samurai"))
+    val estado = BuscaUiState(
+        historico = listOf(
+            HistoricoBuscaItem(
+                query = "hearth",
+                jogo = JogoBusca(
+                    game = Game(
+                        id = "2", title = "Hearthfall", releaseDate = "2026-08-15",
+                        platforms = listOf(Platform.PS5, Platform.PC), genres = listOf(Genre.RPG),
+                        developer = "Crimson Forge", synopsis = "", coverUrl = "",
+                        priceUsd = 69.99, priceBrl = 349.90, trailerId = null, preSaleDate = null, anticipationScore = 92
+                    ),
+                    dias = 42L
+                )
+            ),
+            HistoricoBuscaItem(query = "jogo removido do catalogo", jogo = null) // fallback: jogo não existe mais
+        )
+    )
     BuscaConteudo(uiState = estado, onBuscarHistorico = {}, onLimparHistorico = {}, onJogoClick = {})
 }

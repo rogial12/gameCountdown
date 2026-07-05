@@ -1034,4 +1034,44 @@ src/test/.../ui/busca/BuscaViewModelTest.kt                         ← ALTERADO
 
 ---
 
+## Passo 30 — Histórico de buscas: tiles de jogos, não termos (Fase 2)
+
+**O que foi feito:** Correção do Passo 29 apontada por Igor em revisão: o histórico devia mostrar as **tiles dos jogos** selecionados, não o termo digitado. Regra completa: ao buscar um termo e acessar um jogo, o JOGO entra no histórico (como uma tile normal, igual aos resultados de busca); o termo (`query`) só aparece como texto — fallback — se, no momento de exibir o histórico, o jogo referenciado não existir mais no catálogo.
+
+**Por quê desta forma (mudança por camada, de baixo pra cima):**
+
+- **`HistoricoBusca` (Repository) virou `data class(query, gameId)`**, não mais um `String` solto. O Repository continua "burro" — só guarda/devolve essa dupla, sem decidir nada.
+- **Dedup no Service passou a ser por `gameId`, não por texto.** Selecionar o MESMO jogo de novo (por qualquer termo) mói ele pro topo, atualizando a `query` guardada para a busca mais recente — em vez de "a mesma busca literal duplicava". Como efeito, buscas diferentes que levam ao mesmo jogo não geram entradas repetidas; jogos diferentes achados pela mesma busca geram entradas separadas (o histórico é sobre JOGOS).
+- **`SearchHistoryService.adicionar(query, gameId)`** — a assinatura ganhou o `gameId`, refletindo que o que se está registrando é uma seleção de jogo, não um texto.
+- **`BuscaViewModel` resolve cada entrada crua num `HistoricoBuscaItem` (query + `JogoBusca?`)** ao carregar o histórico: busca o jogo pelo id via `GameService.getGameById`; se existir, calcula os dias e embrulha em `JogoBusca` (mesmo tipo já usado nos resultados normais); se não existir, `jogo` fica `null` e a `query` sobra como fallback. Essa resolução acontece toda vez que o histórico muda (`init`, `registrarBuscaSelecionada`, `limparHistorico`) — não é cacheada, então se um jogo for removido do catálogo entre uma exibição e outra, o fallback aparece na próxima carga.
+- **`registrarBuscaSelecionada(gameId: String)`** ganhou o parâmetro do jogo tocado (antes não recebia nada). Um detalhe que emergiu do design e vale registrar: como `SearchHistoryService.adicionar` ignora query em branco, tocar uma TILE JÁ PRESENTE no histórico (onde a `query` do estado está vazia, já que o histórico só aparece com o campo vazio) não gera uma nova entrada nem reordena — o que é o comportamento certo (a entrada já existe, não há um termo novo pra guardar). Tocar um RESULTADO de uma busca nova (`query` não-vazia) registra normalmente. Nenhum código extra foi necessário pra essa distinção; ela só decorre da regra de "ignorar query em branco" já existente.
+- **UI (`HistoricoBuscas`):** cada entrada agora renderiza um `GameCard` (a mesma tile dos resultados normais) quando `jogo != null`, ou o `ListItem` de texto (como antes) quando `jogo == null`. Tocar a tile chama o mesmo caminho de um resultado de busca comum (`onJogoClick` composto, que registra a seleção e navega para Detalhes); tocar o fallback de texto continua refazendo a busca daquele termo.
+
+**Testes:** reescritos para o novo contrato — `SearchHistoryServiceImplTest` (dedup por `gameId`, jogos diferentes com a mesma query não deduplicam, jogo repetido move pro topo com query atualizada), `InMemorySearchHistoryRepositoryTest` (tipo `HistoricoBusca`), `BuscaViewModelTest` (+2: resolução do histórico em jogos reais; fallback textual quando o `gameId` não existe mais no catálogo fake).
+
+### Arquivos alterados
+
+```
+data/repository/
+├── SearchHistoryRepository.kt         ← ALTERADO: + data class HistoricoBusca(query, gameId)
+└── InMemorySearchHistoryRepository.kt ← ALTERADO: guarda List<HistoricoBusca>
+
+data/service/
+├── SearchHistoryService.kt      ← ALTERADO: adicionar(query, gameId)
+└── SearchHistoryServiceImpl.kt  ← ALTERADO: dedup por gameId
+
+ui/busca/
+├── BuscaUiState.kt         ← ALTERADO: + HistoricoBuscaItem(query, jogo: JogoBusca?); historico agora é List<HistoricoBuscaItem>
+├── BuscaViewModel.kt       ← ALTERADO: carregarHistorico() resolve cada entrada num jogo; registrarBuscaSelecionada(gameId)
+└── BuscaScreen.kt          ← ALTERADO: HistoricoBuscas renderiza GameCard (jogo) ou texto (fallback)
+
+src/test/.../data/repository/InMemorySearchHistoryRepositoryTest.kt ← ALTERADO: tipo HistoricoBusca
+src/test/.../data/service/SearchHistoryServiceImplTest.kt           ← ALTERADO: dedup por gameId
+src/test/.../ui/busca/BuscaViewModelTest.kt                         ← ALTERADO: +2 testes (resolução + fallback)
+```
+
+**Estado:** item 5 corrigido conforme a regra real de produto. Seguem: 8 (Detalhes) e 9 (ícone do app).
+
+---
+
 *Próximo passo: item 8 — carrossel de mídia, destaque no countdown e seção "Onde comprar" na tela de Detalhes.*

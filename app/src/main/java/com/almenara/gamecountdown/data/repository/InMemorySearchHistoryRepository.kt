@@ -7,11 +7,11 @@ package com.almenara.gamecountdown.data.repository // mesmo pacote da interface 
 class InMemorySearchHistoryRepository : SearchHistoryRepository {
 
     // 'var' porque salvarHistorico troca a lista inteira de uma vez (não é uma coleção mutável acumulando)
-    private var historico: List<String> = emptyList()
+    private var historico: List<HistoricoBusca> = emptyList()
 
-    override fun getHistorico(): List<String> = historico
+    override fun getHistorico(): List<HistoricoBusca> = historico
 
-    override fun salvarHistorico(historico: List<String>) {
+    override fun salvarHistorico(historico: List<HistoricoBusca>) {
         this.historico = historico
     }
 }
