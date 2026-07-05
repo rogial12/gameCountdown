@@ -1,5 +1,6 @@
 package com.almenara.gamecountdown.ui.comum // pacote dos componentes visuais compartilhados entre telas
 
+import androidx.compose.foundation.layout.fillMaxWidth // faz a versão em destaque ocupar toda a largura disponível
 import androidx.compose.foundation.layout.padding // modifier para dar espaçamento interno ao redor do texto
 import androidx.compose.material3.MaterialTheme // acesso ao tema atual (cores, tipografia, formas do Material 3)
 import androidx.compose.material3.Surface // "caixa" do Material 3: dá cor de fundo, forma e elevação a um conteúdo
@@ -8,6 +9,7 @@ import androidx.compose.runtime.Composable // anotação que marca uma função 
 import androidx.compose.ui.Modifier // objeto que descreve ajustes de layout/aparência, repassado de fora pra dentro
 import androidx.compose.ui.graphics.Color // tipo que representa uma cor; usado para escolher fundo/texto por estado
 import androidx.compose.ui.text.font.FontWeight // permite deixar o texto em negrito no estado iminente
+import androidx.compose.ui.text.style.TextAlign // centraliza o texto na versão em destaque
 import androidx.compose.ui.tooling.preview.Preview // permite visualizar o componente no editor sem rodar o app
 import androidx.compose.ui.unit.dp // unidade de medida de distância independente de densidade de tela
 
@@ -42,7 +44,8 @@ internal fun calcularCountdown(dias: Long): CountdownInfo = when {
 @Composable
 fun CountdownBadge(
     dias: Long,                     // dias até o lançamento (vindo de GameService.getDaysUntilRelease); pode ser negativo
-    modifier: Modifier = Modifier   // ajustes vindos de quem chama (ex.: espaçamento externo); padrão = nenhum ajuste
+    modifier: Modifier = Modifier,  // ajustes vindos de quem chama (ex.: espaçamento externo); padrão = nenhum ajuste
+    destaque: Boolean = false       // true = versão grande/centralizada (usada no topo da tela de Detalhes, item 8.2 do feedback)
 ) {
     // calcula texto + estado uma única vez, antes de desenhar, aplicando a regra de negócio do countdown
     val info = calcularCountdown(dias)
@@ -64,18 +67,23 @@ fun CountdownBadge(
     // no estado iminente o texto fica em negrito para reforçar o destaque; nos demais, peso normal
     val pesoFonte = if (info.estado == CountdownEstado.IMINENTE) FontWeight.Bold else FontWeight.Normal
 
-    // Surface desenha o fundo arredondado e colorido do chip; o Text vai dentro dela
+    // Surface desenha o fundo arredondado e colorido do chip; o Text vai dentro dela.
+    // na versão em destaque, ocupa a largura toda e usa cantos maiores — vira um "banner", não mais um chip pequeno.
     Surface(
-        modifier = modifier,                // repassa os ajustes externos recebidos
-        shape = MaterialTheme.shapes.small, // cantos levemente arredondados, vindos do tema
-        color = corFundo                    // cor de fundo escolhida conforme o estado do countdown
+        modifier = if (destaque) modifier.fillMaxWidth() else modifier,
+        shape = if (destaque) MaterialTheme.shapes.medium else MaterialTheme.shapes.small,
+        color = corFundo // cor de fundo escolhida conforme o estado do countdown
     ) {
         Text(
-            text = info.texto,                            // texto já formatado pela regra de negócio
-            style = MaterialTheme.typography.labelMedium, // estilo tipográfico de rótulo
+            text = info.texto, // texto já formatado pela regra de negócio
+            // na versão em destaque a tipografia é bem maior, para ficar mais proeminente que os demais tiles da tela
+            style = if (destaque) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.labelMedium,
             color = corTexto,                             // cor do texto que contrasta com o fundo do estado
             fontWeight = pesoFonte,                       // negrito quando iminente, normal caso contrário
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp) // espaço interno entre o texto e a borda do chip
+            textAlign = if (destaque) TextAlign.Center else TextAlign.Unspecified, // centraliza só na versão grande
+            modifier = (if (destaque) Modifier.fillMaxWidth() else Modifier)
+                // espaço interno entre o texto e a borda; bem mais generoso na versão em destaque
+                .padding(horizontal = if (destaque) 16.dp else 8.dp, vertical = if (destaque) 20.dp else 4.dp)
         )
     }
 }
@@ -104,4 +112,11 @@ private fun CountdownBadgeHojePreview() {
 @Composable
 private fun CountdownBadgeDisponivelPreview() {
     CountdownBadge(dias = -3L) // data no passado -> "Disponível", estado neutro
+}
+
+// preview da versão em destaque (usada no topo da tela de Detalhes), no estado iminente
+@Preview
+@Composable
+private fun CountdownBadgeDestaquePreview() {
+    CountdownBadge(dias = 6L, destaque = true) // "faltam 6 dias" — exemplo citado por Igor no feedback
 }

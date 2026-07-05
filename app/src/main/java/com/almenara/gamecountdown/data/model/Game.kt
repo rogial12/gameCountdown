@@ -14,6 +14,7 @@ data class Game(
     val priceUsd: Double?,              // preço em dólar; o ? significa que pode ser null (preço não anunciado)
     val priceBrl: Double?,              // preço em real; null quando o valor em BRL não está disponível
     val trailerId: String?,             // ID do vídeo no YouTube para embed; null quando não há trailer
+    val screenshotUrls: List<String> = emptyList(), // imagens do jogo (capturas de tela) para o carrossel de mídia da tela de Detalhes
     val preSaleDate: String?,           // data de pré-venda no formato ISO; null quando não há pré-venda
     val anticipationScore: Int = 0,     // pontuação de antecipação para ordenação "mais aguardados"; padrão 0
     val isWatched: Boolean = false      // true quando o usuário adicionou o jogo à lista pessoal; padrão false

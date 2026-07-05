@@ -35,6 +35,11 @@ class MockGameRepository : GameRepository { // : GameRepository significa que es
             priceUsd = 59.99,                          // preço em dólar anunciado
             priceBrl = 299.90,                         // preço em real anunciado
             trailerId = "dQw4w9WgXcQ",                // ID de um vídeo no YouTube para embed
+            // 2 imagens + 1 trailer = 3 mídias ao todo: testa o caso em que NÃO sobra nada pro botão "ver galeria"
+            screenshotUrls = listOf(
+                "https://picsum.photos/seed/iron-1/800/450",
+                "https://picsum.photos/seed/iron-2/800/450"
+            ),
             preSaleDate = "2026-06-10",                // pré-venda já encerrada (antes da data atual)
             anticipationScore = 87                     // pontuação de antecipação
         ),
@@ -52,6 +57,13 @@ class MockGameRepository : GameRepository { // : GameRepository significa que es
             priceUsd = 69.99,
             priceBrl = 349.90,
             trailerId = "dQw4w9WgXcQ",
+            // 4 imagens + 1 trailer = 5 mídias ao todo: testa o botão "ver galeria" (sobram 2 além das 3 exibidas)
+            screenshotUrls = listOf(
+                "https://picsum.photos/seed/hearth-1/800/450",
+                "https://picsum.photos/seed/hearth-2/800/450",
+                "https://picsum.photos/seed/hearth-3/800/450",
+                "https://picsum.photos/seed/hearth-4/800/450"
+            ),
             preSaleDate = null,                        // null: sem pré-venda anunciada
             anticipationScore = 92
         ),
@@ -69,6 +81,11 @@ class MockGameRepository : GameRepository { // : GameRepository significa que es
             priceUsd = 39.99,
             priceBrl = null,                           // null: preço em BRL não disponível
             trailerId = null,                          // null: trailer ainda não lançado
+            // sem trailer, só imagens: testa o carrossel funcionando sem vídeo nenhum
+            screenshotUrls = listOf(
+                "https://picsum.photos/seed/verdant-1/800/450",
+                "https://picsum.photos/seed/verdant-2/800/450"
+            ),
             preSaleDate = null,
             anticipationScore = 74
         ),

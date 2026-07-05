@@ -1074,4 +1074,43 @@ src/test/.../ui/busca/BuscaViewModelTest.kt                         ← ALTERADO
 
 ---
 
-*Próximo passo: item 8 — carrossel de mídia, destaque no countdown e seção "Onde comprar" na tela de Detalhes.*
+## Passo 31 — Detalhes: carrossel de mídia, countdown em destaque e "Onde comprar" (Fase 2)
+
+**O que foi feito:** Item 8 da rodada de feedback, com quatro sub-itens. **8.1** carrossel de mídia (trailer + capturas de tela, 3 tiles visíveis + galeria completa). **8.2** o tile de countdown ganhou uma versão bem maior/mais proeminente que os demais elementos da tela. **8.3** o `AddToListSwitch` do "De olho" foi mantido (decisão explícita de Igor). **8.4** nova seção "Onde comprar", com nome fictício de loja por plataforma — preparação para links de afiliado reais numa fase futura.
+
+**Decisões de produto confirmadas com Igor:**
+
+- **O botão "ver galeria completa" só aparece quando há mídia além das 3 exibidas.** Se o jogo tem 3 mídias ou menos, todas já aparecem no carrossel — um botão "ver mais" ali não mostraria nada novo.
+- **O botão "Assistir ao trailer" (que já existia) foi removido.** A tile de vídeo do carrossel passou a cumprir a mesma função (tocar nela abre o YouTube) — manter os dois seria repetir a mesma ação duas vezes na tela.
+
+**Por quê desta forma (por camada):**
+
+- **Modelo:** `Game` ganhou `screenshotUrls: List<String> = emptyList()` (valor padrão preserva todo código/teste existente que constrói `Game` sem esse campo). O mock ganhou dados variados de propósito: Iron Protocol (trailer + 2 imagens = exatamente 3, sem botão de galeria), Hearthfall (trailer + 4 imagens = 5, COM botão "+2"), Verdant Rift (sem trailer, só imagens) e Project Omega (sem trailer nem imagens — carrossel vazio, não desenha nada).
+- **Lógica pura (`montarMidias`, `lojaPara`), testada antes da UI, mesmo padrão de `formatarData`/`rotuloPeriodo`/`calcularCountdown`:** `montarMidias(game)` ordena vídeo (se houver) + imagens, sem decidir quantas cabem na tela — isso é responsabilidade da UI (as 3 primeiras + o resto na galeria), não da função. `lojaPara(platform)` mapeia cada plataforma a um nome de loja fictício; fica na UI (não no enum `Platform`) pela mesma razão de `rotuloPeriodo` na `FilterBar` — mantém o enum de modelo livre de texto específico de uma tela. 6 testes cobrem as duas funções.
+- **`CountdownBadge` ganhou o parâmetro `destaque: Boolean = false`** em vez de nascer um segundo componente. Reusa 100% da regra de negócio já testada (`calcularCountdown`) — só muda a apresentação: tipografia bem maior (`headlineMedium`), ocupa a largura toda, cantos maiores, texto centralizado. Alternativa descartada: duplicar o componente só pra mudar tamanho, o que duplicaria a lógica de cores/texto por estado.
+- **`MediaCarrossel` + `MidiaTile` reusam o `GameCover`** (o carregador genérico de imagem via Coil, já usado pelo `GameCard` e pela capa antiga de Detalhes) tanto para as capturas de tela quanto para a miniatura do vídeo — a miniatura do YouTube é obtida pela URL pública `img.youtube.com/vi/{id}/hqdefault.jpg`, sem precisar de SDK do YouTube nem de uma API key. Um ícone de play sobreposto (`Box` + `align`) é o único elemento extra que diferencia a tile de vídeo da de imagem.
+- **A galeria completa é um `Dialog`, não uma tela nova.** Alternativa descartada: uma rota de navegação própria (`GaleriaScreen` + `ViewModel` + `Factory`) — desproporcional para "ver a lista inteira de mídias", que não tem estado além de "aberta ou fechada". O `Dialog` com `LazyColumn` interna (altura limitada, com rolagem) resolve isso com uma fração do código.
+- **"Onde comprar" itera `game.platforms`**, reaproveitando o dado que já existe (o jogo já sabe em quais plataformas está disponível) em vez de inventar uma lista separada de lojas. O botão "Comprar" existe só visualmente (`onClick = {}`) — a preparação pedida por Igor é estrutural (ter o lugar certo na tela, com o nome da loja certo por plataforma), não funcional ainda.
+
+**Testes:** `DetalhesMidiaTest.kt` (novo, 6 casos: vídeo+imagens em ordem, sem trailer, sem imagens, sem nenhum dos dois, toda plataforma tem loja não-vazia, lojas distintas entre si). Nenhum teste novo de ViewModel foi necessário — `DetalhesViewModel`/`DetalhesUiState` não mudaram, é só a tela que passou a derivar mais coisa (`montarMidias`) do `Game` que já vinha no estado.
+
+### Arquivos criados/alterados
+
+```
+data/model/Game.kt                              ← ALTERADO: + screenshotUrls: List<String>
+data/repository/mock/MockGameRepository.kt      ← ALTERADO: screenshotUrls variados nos jogos 1, 2 e 3
+
+ui/comum/CountdownBadge.kt                      ← ALTERADO: + parâmetro destaque: Boolean
+
+ui/detalhes/DetalhesScreen.kt                   ← ALTERADO: + TipoMidia/Midia/montarMidias/lojaPara (internal, testados);
+                                                    + MediaCarrossel, MidiaTile, GaleriaCompleta, SecaoOndeComprar;
+                                                    remove o botão "Assistir ao trailer" (redundante com a tile de vídeo)
+
+src/test/.../ui/detalhes/DetalhesMidiaTest.kt   ← NOVO: 6 testes (montarMidias + lojaPara)
+```
+
+**Estado:** item 8 do feedback concluído (os 4 sub-itens). Falta só o item 9 (posicionar o ícone do app anexado).
+
+---
+
+*Próximo passo: item 9 — posicionar o ícone do app anexado por Igor.*
