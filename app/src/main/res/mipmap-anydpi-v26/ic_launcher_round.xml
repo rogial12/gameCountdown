@@ -2,5 +2,6 @@
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@drawable/ic_launcher_background" />
     <foreground android:drawable="@drawable/ic_launcher_foreground" />
-    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+    <!-- sem <monochrome>: a imagem é uma foto colorida, não um ícone monocromático — sem essa camada,
+         o Android simplesmente não oferece o ícone temático (Android 13+), usando o ícone normal -->
 </adaptive-icon>

@@ -1113,4 +1113,38 @@ src/test/.../ui/detalhes/DetalhesMidiaTest.kt   ← NOVO: 6 testes (montarMidias
 
 ---
 
-*Próximo passo: item 9 — posicionar o ícone do app anexado por Igor.*
+## Passo 32 — Ícone do app (Fase 2)
+
+**O que foi feito:** Item 9, o último da rodada de feedback. O ícone do app (uma imagem 400×400, anexada por Igor e salva em `docs/njFr9lBi_400x400.jpg`) substituiu o ícone placeholder do template do Android Studio (fundo verde com grade + o logo padrão do Android), que estava lá desde o início do projeto e nunca tinha sido trocado.
+
+**Por quê desta forma:**
+
+- **Ícone adaptativo (`mipmap-anydpi-v26`), não só os PNGs antigos.** O projeto já vinha com a estrutura de ícone adaptativo do Android 8+ (camadas `background`/`foreground` compostas pelo sistema) — se eu só trocasse os PNGs de `mipmap-*` e deixasse o XML adaptativo intacto, aparelhos Android 8+ continuariam mostrando o ícone verde antigo (o XML tem prioridade sobre os PNGs quando existe). Por isso troquei as duas camadas: `ic_launcher_background.xml` virou um `<bitmap>` apontando pra imagem inteira (que já traz o fundo azul embutido), e `ic_launcher_foreground.xml` virou um retângulo totalmente transparente — colocar a mesma imagem nas duas camadas duplicaria o desenho.
+- **A imagem entrou como um recurso `drawable-nodpi`** (`ic_launcher_photo.png`, cópia fiel dos 400×400 originais) — "nodpi" diz ao Android para não escalar por densidade, correto para um recurso único (a imagem já tem resolução suficiente para a maior densidade comum, xxxhdpi).
+- **PNGs redimensionados por densidade continuam existindo** (`mipmap-mdpi` 48px, `hdpi` 72px, `xhdpi` 96px, `xxhdpi` 144px, `xxxhdpi` 192px, gerados a partir da mesma imagem via `System.Drawing` do .NET, com interpolação bicúbica), substituindo os `.webp` do template — são o que aparelhos com Android 7 ou anterior (API < 26, ainda dentro do `minSdk 24`) usam, já que esses não entendem o formato de ícone adaptativo.
+- **A camada `<monochrome>` (ícone temático do Android 13+) foi removida dos dois XMLs adaptativos.** Ela existia apontando pro foreground antigo (o logo do Android); como o foreground agora é transparente, deixá-la seria mostrar um ícone em branco no modo temático. Sem essa linha, o Android simplesmente não oferece a variante temática pra este app — volta a mostrar o ícone normal. Aceitável para o protótipo; pode ganhar uma versão monocromática própria no futuro, se fizer sentido.
+- **O arquivo original permanece em `docs/`** (decisão de Igor) como referência fora da árvore de recursos do Android, mesmo com uma cópia idêntica já vivendo em `drawable-nodpi/`.
+
+**Validação:** `./gradlew assembleDebug` completo (não só `compileDebugKotlin`) — importante aqui porque troca de recurso (drawable/mipmap) é processada pelo AAPT2 na fase de *build*, não pelo compilador Kotlin; um erro de XML ou referência quebrada só apareceria nesse passo.
+
+### Arquivos criados/alterados
+
+```
+docs/njFr9lBi_400x400.jpg                        ← já adicionado por Igor (mantido como referência)
+
+app/src/main/res/
+├── drawable-nodpi/ic_launcher_photo.png         ← NOVO: a imagem em resolução original (400x400)
+├── drawable/ic_launcher_background.xml          ← ALTERADO: de vetor placeholder para <bitmap> da imagem
+├── drawable/ic_launcher_foreground.xml           ← ALTERADO: de vetor placeholder para retângulo transparente
+├── mipmap-anydpi-v26/ic_launcher.xml            ← ALTERADO: remove a camada <monochrome>
+├── mipmap-anydpi-v26/ic_launcher_round.xml      ← ALTERADO: idem
+└── mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/
+    ├── ic_launcher.png                          ← NOVO: substitui ic_launcher.webp do template (removido)
+    └── ic_launcher_round.png                    ← NOVO: substitui ic_launcher_round.webp do template (removido)
+```
+
+**Estado: rodada de feedback pós-protótipo concluída por inteiro** — os 9 apontamentos de Igor (itens 1–9), mais o bug de sincronismo entre telas descoberto no meio do caminho (Passo 27), estão implementados, testados e documentados.
+
+---
+
+*Próximo passo: a definir com Igor — validar o protótipo inteiro no aparelho de ponta a ponta com os ajustes desta rodada, ou seguir para a próxima frente de trabalho da Fase 2/Fase 3.*
