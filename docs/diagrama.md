@@ -1374,3 +1374,34 @@ backend/
 ---
 
 *Próximo passo: a **interface `GameRepository`** (`abc.ABC`, conforme a arquitetura — falha explícita se uma implementação esquecer um método) + uma **implementação com dados semente** (jogos fixos, espelhando o `MockGameRepository` do app), ainda sem RAWG. É a fronteira que, no futuro, troca "dados semente" por "consulta ao banco/RAWG" sem afetar Service nem rotas.*
+
+---
+
+## Passo 39 — Interface `GameRepository` (só o contrato) (Fase 3)
+
+**Ajuste de ritmo (feedback de Igor):** Igor pediu etapas menores e mais descritas — o desenvolvimento vinha rápido demais (Passos 36→38 emendados). Por isso este passo foi **dividido**: entrega **só a interface** do repositório; a implementação com dados semente virou um passo à parte (40). Um arquivo, uma responsabilidade, revisão de cada vez.
+
+**O que foi feito:** A interface `GameRepository` — o *contrato* da fonte de dados de jogos, sem nenhuma implementação. Declara **o que** dá para fazer, nunca **como**.
+
+**Por quê desta forma:**
+
+- **`abc.ABC` + `@abstractmethod`** (não `Protocol`, como a arquitetura da Fase 1 exigiu): a classe é abstrata e lista métodos obrigatórios. Qualquer subclasse que esqueça de implementar um método **falha na criação do objeto**, de forma explícita — a rede de segurança que compensa a revisão sem leitura fluente de Python. Verificado: `GameRepository.__abstractmethods__` = `{get_game_by_id, get_games, search_games}`.
+- **Subconjunto de catálogo do `GameRepository.kt`:** ficam só os três métodos de leitura de catálogo — `get_games()`, `get_game_by_id(game_id)`, `search_games(query)`. Os métodos de "lista pessoal" do app (`getWatchedGames`, `setWatched`, `observarMudancasWatched`) **NÃO** entram: estado do usuário é local no app, o backend não o conhece nesta fase (decisão do Passo 36).
+- **Decisão de Igor (retorno dos métodos):** entre devolver o `Game` do **banco** (ORM, `models/game.py`) ou o `Game` do **contrato** (Pydantic, `models/schemas.py`), Igor escolheu o **ORM**. Assim o repositório trabalha com o objeto de domínio/banco, e a tradução para o JSON do contrato acontece na rota (o FastAPI faz automaticamente). Mantém detalhes de banco fora da camada de API — fiel à arquitetura da Fase 1 ("domínio fundido ao ORM; só o Pydantic separado como contrato").
+- **`get_game_by_id` devolve `Game | None`** — equivalente Python ao `Game?` do Kotlin (pode não haver resultado). O parâmetro é `game_id` (não `id`) para não colidir com a função embutida `id` do Python.
+
+**Sem testes neste passo (de propósito):** uma interface abstrata não tem comportamento — só assinaturas. Não há o que testar até existir uma implementação (mesmo princípio do app: o `GameRepository.kt` não teve teste; os testes nasceram com o `MockGameRepository`). Os testes voltam no Passo 40, junto da implementação semente. A única verificação feita aqui foi de sanidade: o arquivo importa sem erro e registra os três métodos abstratos.
+
+### Arquivos criados
+
+```
+backend/repositories/
+├── __init__.py            ← NOVO: marca 'repositories' como pacote Python
+└── game_repository.py     ← NOVO: interface GameRepository (abc.ABC) — só o contrato, 3 métodos de catálogo
+```
+
+**Estado:** o contrato da fonte de dados está definido. Falta implementá-lo.
+
+---
+
+*Próximo passo (Passo 40): a **implementação com dados semente** — uma classe que implementa a `GameRepository` com jogos fixos em memória (espelhando o `MockGameRepository.kt` do app), ainda sem RAWG nem banco. Aqui voltam os testes (comportamento dos três métodos: catálogo, busca por id, busca por título). Decisão a alinhar com Igor no início do passo: os dados semente vivem só em memória (mais simples) ou já são gravados/lidos do banco SQLite montado no Passo 38.*
