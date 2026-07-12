@@ -1,0 +1,8 @@
+[project]
+name = "gamecountdown-backend"
+version = "0.1.0"
+description = "Backend do GameCountdown — API REST (FastAPI) que serve o catálogo de jogos ao app Android."
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard]>=0.139.0",
+]

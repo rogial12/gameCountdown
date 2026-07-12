@@ -14,7 +14,18 @@ As ferramentas não se cruzam: o Gradle (Android) só enxerga o módulo `:app`; 
 
 ## Estado atual
 
-**Esqueleto recém-criado — ainda sem código de aplicação.** A implementação começa na próxima sessão do Claude Code (no VS Code), segmentada por camada, conforme:
+**Ambiente de pé (Passo 36) — hello world do FastAPI rodando; ainda sem código de produto.** O bootstrap está feito: `uv` como gerenciador, Python 3.13 fixado, `fastapi[standard]` instalado e um endpoint de saúde (`GET /`) provado por HTTP. As camadas de arquitetura (schema, model, repositório, service, rotas) começam a partir do Passo 37, segmentadas uma a uma.
+
+### Como rodar (em um terminal novo, com `uv` já no PATH)
+
+```bash
+uv run --directory backend fastapi dev main.py   # sobe o servidor de desenvolvimento (auto-reload) em http://127.0.0.1:8000
+uv sync --directory backend                      # recria o ambiente virtual a partir do pyproject.toml/uv.lock
+```
+
+A documentação interativa da API fica em `http://127.0.0.1:8000/docs` (gerada automaticamente pelo FastAPI).
+
+Contexto completo e o roteiro segmentado por camada:
 
 - **Handoff da Fase 3:** [`../docs/handoff-fase3.md`](../docs/handoff-fase3.md) — contrato de API a honrar, arquitetura, escopo e o roteiro de arranque.
 - **Spec completa:** [`../docs/game-countdown-app-spec.md`](../docs/game-countdown-app-spec.md) (seção de backend).

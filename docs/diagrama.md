@@ -1246,3 +1246,47 @@ Itens que Igor identificou ao validar o protótipo no aparelho. **Não são da F
 ---
 
 *Próximo passo: **Fase 3** — início do backend real (Python + FastAPI + SQLAlchemy, API REST) respeitando o contrato de API já definido na Fase 1. Será desenvolvido no **VS Code** (não mais Android Studio), em uma **nova sessão do Claude Code** — handoff preparado em **`docs/handoff-fase3.md`** (contrato de API a honrar, arquitetura, escopo, e as decisões a resolver com Igor antes de codar). A definir com Igor o ponto de partida (segmentado por camada, como de praxe).*
+
+---
+
+# FASE 3 — Backend (Python + FastAPI)
+
+## Passo 36 — Bootstrap do ambiente Python + "hello world" do FastAPI (Fase 3)
+
+**O que foi feito:** Primeiro passo da Fase 3 — preparar o ambiente de backend, do zero (a máquina não tinha Python instalado), e provar que a base sobe. Ainda **não** há código de produto (schema, model, rota real) — isto é só a fundação sobre a qual as camadas serão construídas.
+
+**Decisões tomadas por Igor antes de começar (as três pendentes do handoff da Fase 3):**
+
+- **Ferramenta de ambiente/deps: `uv`.** Escolhido entre `uv`, `venv+pip+requirements.txt` e Poetry. O `uv` é uma peça só que faz três trabalhos: instala e fixa o próprio Python, cria o ambiente virtual (venv) e gerencia as dependências — um binário rápido, padrão atual da comunidade. Como a máquina não tinha Python, ter uma ferramenta única (em vez de instalar Python por um lado e o gerenciador por outro) reduz as peças que Igor precisa acompanhar.
+- **`isWatched` fica FORA do schema público.** A lista pessoal é local no app (sem sync entre dispositivos na Fase 3), então o backend não conhece usuário e não teria como preencher esse campo. O schema público do catálogo o omite — mais honesto sobre o que o backend realmente sabe. O app continua resolvendo "de olho" localmente, como já faz. (Vale quando o schema for escrito, no Passo 37.)
+- **Countdown continua sendo calculado no app, não na API.** O app já deriva os "dias até o lançamento" a partir da `releaseDate` (`GameServiceImpl` com `Clock` injetado, testado). A API manda só a `releaseDate`; um campo calculado na API envelheceria em cache e duplicaria lógica já existente e testada. Nada muda no app.
+
+**Por quê desta forma (implementação):**
+
+- **`uv init --bare`, sem arquivos de template.** A inicialização criou só o `pyproject.toml` (o equivalente Python ao `build.gradle.kts`), sem `main.py`/`.gitignore` de exemplo — assim a estrutura é construída camada a camada, sem lixo de template. O `README.md` de âncora que já existia na pasta foi preservado.
+- **Python 3.13 fixado** em `backend/.python-version` — registra explicitamente "este projeto roda em 3.13", versionável no Git, reproduzível em qualquer máquina.
+- **`fastapi[standard]`**, não o `fastapi` "pelado": os extras `standard` trazem junto o servidor `uvicorn` e a CLI `fastapi` — sem servidor, a aplicação não sobe. As dependências ficam registradas no `pyproject.toml` (a lista versionada, como o `libs.versions.toml` do Android).
+- **`main.py` mínimo — um único endpoint de saúde** (`GET /` → `{"status": "ok"}`), comentado linha a linha em português (mesma regra do Kotlin). Serve só de "sinal de vida"; nenhuma lógica de negócio ainda.
+- **Prova em dois níveis:** (1) o cliente de teste embutido do FastAPI (exercita a app inteira em memória — é o mecanismo que os testes de integração vão usar) devolveu `200 {'status': 'ok'}`; (2) o `uvicorn` real subiu num socket (`127.0.0.1:8000`), respondeu por HTTP e foi encerrado. A base está de pé.
+
+**Notas técnicas registradas:**
+
+- O instalador do `uv` ajusta o `PATH`, mas terminais já abertos não recarregam sozinhos — nesta sessão o `uv` foi chamado pelo caminho completo (`~/.local/bin/uv.exe`). Em terminal novo, `uv` funciona pelo nome.
+- Aviso de *deprecation* do Starlette: o cliente de teste vai preferir `httpx2` a `httpx` numa versão futura. Não bloqueia nada agora; a tratar quando os testes de integração forem montados.
+
+### Arquivos criados/alterados
+
+```
+backend/
+├── pyproject.toml       ← NOVO: config do projeto (nome, Python 3.13, dependência fastapi[standard])
+├── .python-version      ← NOVO: fixa o Python em 3.13
+├── main.py              ← NOVO: app FastAPI + endpoint de saúde GET / (hello world)
+├── uv.lock              ← NOVO: lockfile do uv (versões exatas de todas as dependências, reproduzível)
+└── .venv/               ← NOVO (ignorado pelo Git): ambiente virtual com as dependências instaladas
+```
+
+**Estado:** ambiente de backend pronto e provado. As subpastas de arquitetura (`api/`, `services/`, `repositories/`, `models/`, `ingestion/`) ainda **não** existem — serão criadas camada a camada.
+
+---
+
+*Próximo passo: a **primeira camada real** — o **schema Pydantic `Game`** fiel ao `Game.kt` do app (com `isWatched` omitido, conforme decidido), acompanhado de um **teste que trava o contrato** (garante que os campos/tipos batem com o que o app espera). Depois dele: os enums `Platform`/`Genre`, o model SQLAlchemy, a interface `GameRepository`, o `GameService`, e as rotas públicas.*
