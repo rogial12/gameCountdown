@@ -1196,11 +1196,36 @@ src/androidTest/ui/detalhes/
 
 ---
 
+## Passo 35 — Teste instrumentado de feature: Busca (Fase 2)
+
+**O que foi feito:** `BuscaScreenInstrumentedTest` (5 casos), no mesmo padrão dos Passos 23/33/34 — `BuscaViewModel` real + um `FakeGameService` local + um `FakeSearchHistoryService` local (a Busca é a única tela com duas dependências de Service) + a tela real do Compose. Rodou no aparelho físico (SM-S908E) com permissão de Igor: 100% de sucesso (5 casos, 0 falhas). Com este, os quatro testes instrumentados de feature pendentes desde o Passo 23 estão completos.
+
+**Por quê desta forma:**
+
+- **Dois fakes, não um.** `BuscaViewModel` depende de `GameService` (busca por título) e `SearchHistoryService` (histórico). O `FakeSearchHistoryService` replica em memória a mesma regra simplificada usada no teste unitário (`BuscaViewModelTest`, Passo 23/24-ish): sem duplicata por jogo, mais recente no topo — o bastante para a tela reagir de ponta a ponta; a regra de negócio de verdade já é coberta por `SearchHistoryServiceImplTest`.
+- **`FakeGameService` sem rastrear `watched`.** Ao contrário dos fakes de Catálogo/Lista Pessoal/Detalhes, este não guarda `watchedIds`: a tela de Busca não exibe nenhum indicador de "de olho" nos resultados, então `setWatched`/`observarMudancasWatched` viram no-ops — menos código de suporte sem perder cobertura do que a tela realmente mostra.
+- **O campo de busca é localizado pelo placeholder ("Buscar jogo..."), não por `contentDescription`.** O `TextField` do Material 3 não tem identificador próprio; como o placeholder só aparece enquanto o campo está vazio, `onNodeWithText("Buscar jogo...").performTextInput(...)` localiza o campo e digita nele num só passo — mesma técnica-padrão usada em testes Compose para campos sem rótulo fixo.
+- **`montarTela` ganhou um parâmetro `historicoInicial`**, ausente nos outros testes de tela: é o único jeito de testar o estado "histórico já existe" sem primeiro simular uma busca-e-seleção dentro do próprio teste (o que exigiria mais passos e teria o mesmo efeito).
+- **Os cinco casos cobrem os quatro estados de tela** definidos em `BuscaConteudo` (Passo 24): vazio sem histórico → dica; digitado com resultado → card; digitado sem resultado → "nenhum jogo encontrado"; vazio com histórico → tile do jogo salvo sob "Buscas recentes" + o "Limpar" voltando à dica. O quinto caso, à parte, confirma que tocar num resultado dispara `onJogoClick` com o id certo (a navegação para Detalhes).
+
+**Sobre os testes (5 casos):** campo vazio sem histórico exibe a dica; digitar um termo que casa com um jogo mostra o card do resultado; digitar um termo sem correspondência mostra "Nenhum jogo encontrado"; tocar num resultado dispara `onJogoClick` com o id certo; histórico pré-existente mostra a tile do jogo salvo e "Limpar" esvazia o histórico, voltando à dica.
+
+### Arquivos criados
+
+```
+src/androidTest/ui/busca/
+└── BuscaScreenInstrumentedTest.kt   ← 5 testes + FakeGameService local + FakeSearchHistoryService local
+```
+
+**Estado: os quatro testes instrumentados de feature pendentes desde o Passo 23 estão completos** — **Catálogo, Lista Pessoal, Detalhes e Busca**, todos prontos e passando no aparelho físico.
+
+---
+
 ## Pendências para conclusão da Fase 2
 
 O núcleo da Fase 2 (protótipo) está completo: app com dados mockados respeitando o contrato de API, todas as telas validando o fluxo/conceito, testes unitários ativos, SOLID + Repository + Services + diagrama vivo. Restam **toques finais** antes de declarar a fase encerrada:
 
-- [ ] **Testes instrumentados de feature** (`src/androidTest/`) — validação final na tela real, conforme a política de dois níveis definida no Passo 23. Prontos: `GameCard` (template), **Catálogo** e **Lista Pessoal** (Passo 33), **Detalhes** (Passo 34). Falta só **Busca**. Cada um é lento (~70s, roda no aparelho físico SM-S908E) — o Claude **pede permissão a Igor antes de executar** cada um (`connectedDebugAndroidTest`), como combinado no Passo 23.
+- [x] **Testes instrumentados de feature** (`src/androidTest/`) — validação final na tela real, conforme a política de dois níveis definida no Passo 23. Completo: `GameCard` (template), **Catálogo** e **Lista Pessoal** (Passo 33), **Detalhes** (Passo 34), **Busca** (Passo 35). Cada um rodou no aparelho físico SM-S908E com permissão prévia de Igor (`connectedDebugAndroidTest`), como combinado no Passo 23.
 - [ ] **Validação manual de ponta a ponta no aparelho** — Igor rodar o protótipo com todos os ajustes desta rodada (Passos 24–32) e confirmar que o conjunto está redondo. É teste do dono do projeto, não do Claude.
 - [ ] **(Opcional, decisão de Igor) Spike mínimo de widget Glance** — versão só com capa + countdown, para validar cedo o pipeline Repository → widget. A spec só recomenda acionar esse spike **se** a pesquisa da Fase 1 sobre restrições do Glance tiver indicado risco real de incompatibilidade de dados; sem esse sinal, segue-se direto para a Fase 3. Requer confirmação de Igor sobre o que aquela pesquisa concluiu.
 
