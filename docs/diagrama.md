@@ -1245,4 +1245,4 @@ Itens que Igor identificou ao validar o protótipo no aparelho. **Não são da F
 
 ---
 
-*Próximo passo: **Fase 3** — início do backend real (Python + FastAPI + SQLAlchemy, API REST) respeitando o contrato de API já definido na Fase 1. A definir com Igor o ponto de partida (segmentado por camada, como de praxe).*
+*Próximo passo: **Fase 3** — início do backend real (Python + FastAPI + SQLAlchemy, API REST) respeitando o contrato de API já definido na Fase 1. Será desenvolvido no **VS Code** (não mais Android Studio), em uma **nova sessão do Claude Code** — handoff preparado em **`docs/handoff-fase3.md`** (contrato de API a honrar, arquitetura, escopo, e as decisões a resolver com Igor antes de codar). A definir com Igor o ponto de partida (segmentado por camada, como de praxe).*

@@ -13,3 +13,20 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# --- Backend Python (Fase 3, pasta backend/) ---
+# artefatos de bytecode e cache do interpretador
+__pycache__/
+*.py[cod]
+# ambientes virtuais (dependências instaladas localmente — não vão pro repo)
+.venv/
+venv/
+env/
+# metadados de empacotamento
+*.egg-info/
+# caches de ferramentas de teste e análise estática
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+# variáveis de ambiente e segredos (chaves de API RAWG/Steam, URL do banco, etc.)
+.env
