@@ -30,3 +30,7 @@ env/
 .ruff_cache/
 # variáveis de ambiente e segredos (chaves de API RAWG/Steam, URL do banco, etc.)
 .env
+# banco SQLite local de desenvolvimento (dado efêmero — não vai pro repo)
+*.db
+*.sqlite
+*.sqlite3

@@ -5,6 +5,7 @@ description = "Backend do GameCountdown — API REST (FastAPI) que serve o catá
 requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard]>=0.139.0",
+    "sqlalchemy>=2.0.51",
 ]
 
 [dependency-groups]

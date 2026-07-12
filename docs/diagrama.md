@@ -1327,3 +1327,50 @@ backend/
 ---
 
 *Próximo passo: o **model SQLAlchemy `Game`** — o mesmo jogo, agora como tabela de banco (domínio fundido ao ORM, conforme a arquitetura da Fase 1). É a peça que o schema Pydantic vai "traduzir" para JSON quando os dados vierem do banco. Decisão a alinhar com Igor: banco de verdade (Postgres) já agora, ou SQLite local no arranque para não depender de infra ainda.*
+
+---
+
+## Passo 38 — Model SQLAlchemy `Game` + infraestrutura de banco (Fase 3)
+
+**O que foi feito:** A camada de persistência — o mesmo jogo do schema, agora como **tabela de banco**. Dois arquivos novos: `database.py` (infraestrutura de conexão) e `models/game.py` (o model SQLAlchemy `Game`, o "domínio fundido ao ORM" da arquitetura da Fase 1). Mais 2 testes de persistência (round-trip: inserir → ler de volta) num SQLite em memória.
+
+**Decisão tomada por Igor (banco no arranque):** **SQLite**, "já prevendo migração para outro tipo de banco". Escolhido entre SQLite (arquivo local, zero infra, roda na hora) e Postgres (banco de produção da spec, mas exige subir um servidor antes de codar). O SQLite destrava o desenvolvimento imediato; a troca para Postgres no deploy fica barata pela forma como o código foi estruturado (ver abaixo).
+
+**Como a migração de banco foi prevista (o ponto central do passo):**
+
+- **A URL do banco é lida de uma variável de ambiente** (`DATABASE_URL`), com o SQLite local como padrão. Trocar para Postgres é definir essa variável apontando para o servidor — **sem mudar uma linha** de model, repositório ou rota. É a fronteira única entre "código" e "onde os dados moram".
+- **Só o SQLite tem um argumento especial** (`check_same_thread=False`), aplicado condicionalmente (`if DATABASE_URL.startswith("sqlite")`). Qualquer outro banco recebe configuração limpa. Nenhum SQL específico de SQLite foi escrito.
+- **Tipos de coluna portáveis:** as listas (`platforms`, `genres`, `screenshot_urls`) usam o tipo `JSON` genérico do SQLAlchemy, que o próprio SQLAlchemy mapeia para o recurso nativo de cada banco (JSON1 no SQLite, JSON/JSONB no Postgres). Nada preso a um dialeto.
+
+**Decisão de implementação (default convencional, sem trade-off que justificasse travar):** as listas de plataformas/gêneros/screenshots são guardadas numa **coluna JSON**, não em tabelas normalizadas (relação muitos-para-muitos). Motivo: é portável, e a filtragem por plataforma/gênero acontece na camada de Service (em Python), não no SQL — normalizar seria over-engineering para um catálogo pequeno e curado v0. Registrado como revisável se algum dia for preciso filtrar por plataforma direto no banco, em escala.
+
+**Por quê desta forma (implementação):**
+
+- **Estilo SQLAlchemy 2.0 tipado** (`Mapped[...]` + `mapped_column(...)`): colunas declaradas com tipo explícito, o que dá legibilidade e checagem de tipo. `id` textual é a chave primária (espelha o `id: String` do contrato, ex.: "gta6"), não um inteiro autoincremento.
+- **Fidelidade obrigatório/nulável ao contrato:** colunas `nullable=True` espelham os `Type?` do Kotlin (preço, trailer, pré-venda); `screenshot_urls` e `anticipation_score` têm `default` (lista vazia / zero). **Sem `isWatched`** — a tabela do catálogo não guarda estado de usuário (decisão do Passo 36).
+- **`database.py` separa "como conectamos" de "o que é um jogo":** engine, `SessionLocal` (fábrica de sessões) e `get_db()` (a dependência `Depends()` que abrirá/fechará uma sessão por requisição) ficam na infraestrutura; o model fica em `models/`. `get_db()` já está pronto, mas ainda não é usado por nenhuma rota — entra em cena com o repositório/rotas.
+- **`Base` (DeclarativeBase)** é a raiz que conhece todas as tabelas (`Base.metadata`), usada para criá-las no banco. Ainda não há criação automática de tabelas no arranque do app (isso virá quando as rotas precisarem de dados); por ora, o teste cria as tabelas no seu próprio banco de memória.
+
+**Sobre os testes (2 casos):** rodam num SQLite **em memória** (isolado, some ao fim). O primeiro insere um jogo completo, reabre em sessão nova (garantindo que veio do banco) e confere que tudo volta intacto — em especial as datas (voltam como `date`) e as listas (round-trip pela coluna JSON). O segundo confirma que colunas nuláveis aceitam nulo e que os campos com padrão assumem seus defaults quando omitidos. `pytest`: **8 passaram** (6 do schema + 2 do model), 0 falhas.
+
+**Migrações de schema (Alembic) — registrado para o futuro, fora deste passo:** "prevendo migração de banco" (trocar SQLite↔Postgres) é resolvido pela URL configurável, acima. Versionar *mudanças de estrutura* de tabela ao longo do tempo é outro assunto (a ferramenta é o Alembic) — desnecessário agora, quando não há dado em produção e as tabelas nascem de `create_all`. Entra quando houver deploy com dado a preservar.
+
+### Arquivos criados/alterados
+
+```
+backend/
+├── database.py         ← NOVO: engine + SessionLocal + Base + get_db; URL do banco via env (SQLite padrão)
+├── models/
+│   └── game.py         ← NOVO: model SQLAlchemy Game (tabela 'games'; domínio + ORM; sem isWatched)
+├── tests/
+│   └── test_game_model.py ← NOVO: 2 testes de persistência (round-trip em SQLite de memória)
+└── pyproject.toml      ← ALTERADO: +sqlalchemy (produção)
+
+.gitignore              ← ALTERADO: ignora *.db/*.sqlite (banco SQLite local de desenvolvimento)
+```
+
+**Estado:** o contrato (schema) e a persistência (model + banco) existem e estão testados, com a troca de banco já prevista. Faltam, subindo: a interface `GameRepository` (`abc.ABC`) + implementação (começando com dados semente), o `GameService` (filtro/ordenação/busca, espelhando o `GameService.kt`) e as rotas públicas `games.py`.
+
+---
+
+*Próximo passo: a **interface `GameRepository`** (`abc.ABC`, conforme a arquitetura — falha explícita se uma implementação esquecer um método) + uma **implementação com dados semente** (jogos fixos, espelhando o `MockGameRepository` do app), ainda sem RAWG. É a fronteira que, no futuro, troca "dados semente" por "consulta ao banco/RAWG" sem afetar Service nem rotas.*
