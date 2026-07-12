@@ -52,7 +52,7 @@ graph TD
     SVC["Service\n(regras de negócio)"]
     REPO["Repository\n(interface)"]
     MOCK["MockRepository\n(dados falsos – Fase 2)"]
-    API["API Real\n(Fase 3 em diante)"]
+    API["API Real (backend)\nver 'Diagrama de componentes — Backend'\nna seção da Fase 3, abaixo"]
 
     UI -->|observa estado| VM
     VM -->|chama| SVC
@@ -1250,6 +1250,77 @@ Itens que Igor identificou ao validar o protótipo no aparelho. **Não são da F
 ---
 
 # FASE 3 — Backend (Python + FastAPI)
+
+## Diagrama de componentes — Backend (vivo)
+
+Este diagrama expande a caixa única "API Real" do diagrama do Passo 1 (lá em cima, no app) na arquitetura de camadas do backend. É **vivo**: atualizado a cada camada nova. `✅` = pronto e testado; `⏳` = pendente (a construir nos próximos passos).
+
+```mermaid
+graph TD
+    CLIENT["App Android (cliente)\nfala só com o backend, via HTTP"]
+
+    subgraph BACKEND["backend - FastAPI"]
+        MAIN["main.py ✅\napp FastAPI + GET / (saúde)"]
+
+        subgraph API["api - rotas HTTP"]
+            GAMES["games.py ⏳\npúblicas, só leitura\n(converte ORM → contrato aqui)"]
+        end
+
+        subgraph SVC["services - regras de negócio"]
+            GAMESVC["GameService ⏳\nfiltro · ordenação · busca · countdown"]
+        end
+
+        subgraph REPO["repositories - fontes de dados"]
+            IFACE["GameRepository (abc.ABC) ✅\nget_games · get_game_by_id · search_games"]
+            SEED["Impl. semente ⏳\nespelha o MockGameRepository do app"]
+        end
+
+        subgraph MODELS["models + database - domínio, contrato, persistência"]
+            ORM["Game (SQLAlchemy/ORM) ✅\ntabela 'games'"]
+            SCHEMA["Game (Pydantic) ✅\ncontrato de API — JSON camelCase"]
+            ENUMS["Platform · Genre ✅\nenums espelhando os .kt"]
+            DBMOD["database.py ✅\nBase · engine · SessionLocal · get_db\nURL via env: SQLite → Postgres"]
+        end
+    end
+
+    DBMS[("Banco\nSQLite (dev) → Postgres (prod) ⏳")]
+
+    CLIENT -->|GET /games| GAMES
+    GAMES -->|chama| GAMESVC
+    GAMESVC -->|chama| IFACE
+    IFACE -.->|implementado por| SEED
+    SEED -->|lê/grava| ORM
+    ORM -.->|traduzido para JSON| SCHEMA
+    GAMES -.->|response_model| SCHEMA
+    ORM --- DBMOD
+    DBMOD -->|conecta| DBMS
+
+    classDef pronto fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20;
+    classDef pendente fill:#eeeeee,stroke:#9e9e9e,stroke-dasharray:4 4,color:#555555;
+    class MAIN,IFACE,ORM,SCHEMA,ENUMS,DBMOD pronto;
+    class GAMES,GAMESVC,SEED,DBMS pendente;
+```
+
+**Leitura do diagrama:** o app **só fala com o backend** (nunca direto com RAWG/Steam). A requisição HTTP entra pela camada `api/` (rotas), que chama o `services/` (regras de negócio), que chama a **interface** `GameRepository`. A interface é implementada pela fonte concreta — hoje a implementação semente ⏳, amanhã uma que lê o banco/RAWG — sem que Service ou rota precisem mudar. Os dados vivem como `Game` **ORM** (banco). As **duas setas pontilhadas até o `Game` Pydantic** marcam o ponto onde o objeto de banco é **traduzido para o JSON do contrato** — isso acontece na rota, via `response_model` do FastAPI (decisão do Passo 39). Assim, detalhes de banco nunca vazam para a API.
+
+### Estado atual por componente (mapeado aos passos)
+
+| Camada | Componente | Estado | Passo |
+|---|---|---|---|
+| entrada | `main.py` — app FastAPI + endpoint de saúde | ✅ | 36 |
+| `models/` | enums `Platform` · `Genre` | ✅ | 37 |
+| `models/` | `Game` Pydantic (contrato de API) | ✅ | 37 |
+| `models/` | `Game` SQLAlchemy (domínio/ORM) | ✅ | 38 |
+| infraestrutura | `database.py` — `Base` · engine · sessão · `get_db` | ✅ | 38 |
+| `repositories/` | `GameRepository` (interface `abc.ABC`) | ✅ | 39 |
+| `repositories/` | Implementação semente | ⏳ | 40 (próximo) |
+| `services/` | `GameService` (filtro/ordenação/busca/countdown) | ⏳ | — |
+| `api/` | `games.py` (rotas públicas de catálogo) | ⏳ | — |
+| persistência | Banco (SQLite dev pronto → Postgres prod) | ⏳ | 38 |
+
+> **Fora do diagrama, de propósito:** o módulo `ingestion/` (scraping/RSS/RAWG/Steam, detecção de "anúncio grande") é da **Fase 4** — a interface do repositório já prevê essa troca de fonte, mas nada dela é construído agora. O painel de curadoria (SQLAdmin) também não entrou ainda.
+
+---
 
 ## Passo 36 — Bootstrap do ambiente Python + "hello world" do FastAPI (Fase 3)
 
