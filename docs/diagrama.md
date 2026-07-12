@@ -1290,3 +1290,40 @@ backend/
 ---
 
 *Próximo passo: a **primeira camada real** — o **schema Pydantic `Game`** fiel ao `Game.kt` do app (com `isWatched` omitido, conforme decidido), acompanhado de um **teste que trava o contrato** (garante que os campos/tipos batem com o que o app espera). Depois dele: os enums `Platform`/`Genre`, o model SQLAlchemy, a interface `GameRepository`, o `GameService`, e as rotas públicas.*
+
+---
+
+## Passo 37 — Camada de contrato: enums + schema Pydantic `Game` (Fase 3)
+
+**O que foi feito:** A primeira camada de código de produto do backend — o **contrato de API**. Três arquivos em `backend/models/`: os enums `Platform` e `Genre` (espelhando os `.kt` do app), o schema Pydantic `Game` (o formato JSON que o app consome) e **6 testes que travam o contrato** (falham se o schema divergir do `Game.kt`). Os enums entraram junto com o schema (e não como passo separado, como o handoff sugeria) porque o `Game` os referencia diretamente — são a mesma camada de contrato, e um schema que aponta para enums inexistentes não compila nem faz sentido revisar isoladamente.
+
+**Decisão tomada por Igor (estilo do schema):** entre **(a)** espelho literal do `Game.kt` (campos camelCase, datas como texto) e **(b)** idiomático em Python com tradução automática (campos snake_case → camelCase no JSON, datas como tipo `date` que valida o formato), Igor escolheu **(b)**. Os dois produziriam JSON idêntico; a opção idiomática dá validação de dados de graça (rejeita uma data mal formada já na entrada — útil quando os dados vierem da RAWG/curadoria) e é o estilo profissional de um backend que vai crescer. O custo aceito é a camada de "tradução" (uma linha de config, `alias_generator=to_camel`).
+
+**Por quê desta forma (implementação):**
+
+- **`isWatched` e countdown ficam FORA do schema** (decisões do Passo 36): a lista pessoal é local no app e o countdown é derivado da `releaseDate` pelo próprio app. O schema público expõe só o que o backend realmente conhece do catálogo. Um teste (`test_is_watched_nao_existe_no_schema`) trava isso explicitamente.
+- **Enums herdam de `(str, Enum)`**: cada membro é ao mesmo tempo texto e valor de enum, então o Pydantic o serializa como o texto fixo do contrato ("PS5", "ACTION"...). Os valores espelham os **nomes** dos enums do app (`Platform.kt`/`Genre.kt`); o `displayName` em português é coisa da UI do app e não entra no contrato.
+- **`alias_generator=to_camel` + `populate_by_name=True`**: o código fica em snake_case (idiomático) e o JSON sai em camelCase (fiel ao app). O `populate_by_name` deixa construir o `Game` tanto pelo nome Python quanto pelo apelido — flexível para montar a partir do banco e dos testes.
+- **Fidelidade de obrigatório/opcional ao `Game.kt`**: campos `Type?` do Kotlin viram `tipo | None` **sem valor padrão** (obrigatórios, mas aceitam nulo); campos com `= default` no Kotlin (`screenshotUrls`, `anticipationScore`) viram campos com padrão em Python. A ordem foi levemente reagrupada (obrigatórios → nuláveis → com padrão), o que não afeta o contrato (o app mapeia por nome de chave, não por ordem).
+- **Configuração do pytest no `pyproject.toml`** (`pythonpath = ["."]`, `testpaths = ["tests"]`): permite os testes importarem o pacote `models` e concentra a busca de testes em `tests/`. `pytest` entrou como dependência **de desenvolvimento** (grupo `dev`), fora do que vai para produção.
+
+**Sobre os testes (6 casos):** o principal (`test_json_tem_exatamente_as_chaves_do_contrato`) compara o conjunto de chaves do JSON serializado com o conjunto exato esperado do `Game.kt` — pega tanto campo faltando quanto campo a mais. Os demais travam pontos específicos: `isWatched` ausente; datas serializadas como texto ISO "AAAA-MM-DD"; enums serializados como seus nomes fixos; campos nulos e padrões aceitos; e data inválida rejeitada (provando o ganho da validação). Rodados com `uv run --directory backend pytest`: **6 passaram, 0 falhas**.
+
+### Arquivos criados/alterados
+
+```
+backend/
+├── models/
+│   ├── __init__.py         ← NOVO: marca 'models' como pacote Python importável
+│   ├── enums.py            ← NOVO: Platform e Genre (str, Enum), espelhando os .kt do app
+│   └── schemas.py          ← NOVO: schema Pydantic Game (contrato de API; isWatched/countdown omitidos)
+├── tests/
+│   └── test_game_schema.py ← NOVO: 6 testes que travam o contrato contra o Game.kt
+└── pyproject.toml          ← ALTERADO: +pytest (dev) e config [tool.pytest.ini_options]
+```
+
+**Estado:** o contrato de API está definido em Python e travado por teste. Faltam, subindo a partir daqui: o model SQLAlchemy `Game` (domínio + ORM), a interface `GameRepository` (`abc.ABC`) + implementação com dados semente, o `GameService` (filtro/ordenação/busca, espelhando o `GameService.kt`) e as rotas públicas `games.py`.
+
+---
+
+*Próximo passo: o **model SQLAlchemy `Game`** — o mesmo jogo, agora como tabela de banco (domínio fundido ao ORM, conforme a arquitetura da Fase 1). É a peça que o schema Pydantic vai "traduzir" para JSON quando os dados vierem do banco. Decisão a alinhar com Igor: banco de verdade (Postgres) já agora, ou SQLite local no arranque para não depender de infra ainda.*

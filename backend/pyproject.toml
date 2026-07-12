@@ -6,3 +6,16 @@ requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard]>=0.139.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+# Configuração do pytest (o executor de testes).
+[tool.pytest.ini_options]
+# pythonpath = ["."] adiciona a pasta 'backend/' ao caminho de importação, para que os testes
+# consigam fazer 'from models.schemas import Game' (senão o Python não acharia o pacote 'models').
+pythonpath = ["."]
+# testpaths = ["tests"] diz ao pytest para procurar testes só dentro da pasta 'tests/'.
+testpaths = ["tests"]
