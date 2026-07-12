@@ -1226,11 +1226,23 @@ src/androidTest/ui/busca/
 O núcleo da Fase 2 (protótipo) está completo: app com dados mockados respeitando o contrato de API, todas as telas validando o fluxo/conceito, testes unitários ativos, SOLID + Repository + Services + diagrama vivo. Restam **toques finais** antes de declarar a fase encerrada:
 
 - [x] **Testes instrumentados de feature** (`src/androidTest/`) — validação final na tela real, conforme a política de dois níveis definida no Passo 23. Completo: `GameCard` (template), **Catálogo** e **Lista Pessoal** (Passo 33), **Detalhes** (Passo 34), **Busca** (Passo 35). Cada um rodou no aparelho físico SM-S908E com permissão prévia de Igor (`connectedDebugAndroidTest`), como combinado no Passo 23.
-- [ ] **Validação manual de ponta a ponta no aparelho** — Igor rodar o protótipo com todos os ajustes desta rodada (Passos 24–32) e confirmar que o conjunto está redondo. É teste do dono do projeto, não do Claude.
-- [ ] **(Opcional, decisão de Igor) Spike mínimo de widget Glance** — versão só com capa + countdown, para validar cedo o pipeline Repository → widget. A spec só recomenda acionar esse spike **se** a pesquisa da Fase 1 sobre restrições do Glance tiver indicado risco real de incompatibilidade de dados; sem esse sinal, segue-se direto para a Fase 3. Requer confirmação de Igor sobre o que aquela pesquisa concluiu.
+- [x] **Validação manual de ponta a ponta no aparelho** — feita por Igor em 2026-07-12: o app funciona bem, fluxo redondo. Igor anotou lacunas para fases futuras (ver "Backlog pós-Fase 2" abaixo), mas nenhuma delas bloqueia o encerramento da fase de protótipo.
+- [x] **(Opcional, decisão de Igor) Spike de widget Glance** — Igor confirmou (2026-07-12) que a pesquisa da Fase 1 não apontou problemas. Feita nova pesquisa de confirmação com o estado atual do Glance (**`docs/pesquisa-glance-spike.md`**): sem risco bloqueante; a única nuance real é o carregamento da capa (imagem remota) via `RemoteViews`. **Decisão de Igor: pular o spike e seguir para a Fase 3** (opção A da nota de pesquisa) — alinhado à spec, já que não há risco bloqueante.
+
+**➡️ Com os três itens resolvidos, a Fase 2 (Protótipo) está ENCERRADA.**
 
 Não são pendências (decisões conscientes, reservadas para fases futuras e já documentadas): os estados `carregando`/`mensagemErro` não desenhados no Catálogo (Fase 3, quando a fonte real for assíncrona) e o botão "Comprar" sem ação na seção "Onde comprar" (Fase 6, links de afiliado).
 
 ---
 
-*Próximo passo: a definir com Igor — seguir com o último teste instrumentado restante (Busca, pedindo permissão antes de rodar), esclarecer o spike de widget, ou seguir para a Fase 3.*
+## Backlog pós-Fase 2 (registrado por Igor na validação de 2026-07-12)
+
+Itens que Igor identificou ao validar o protótipo no aparelho. **Não são da Fase 2** (protótipo com UI descartável) — ficam registrados aqui para não se perderem e serão endereçados nas fases seguintes:
+
+- **Tela de configurações** — ainda não existe; feature de produto (Fase 3+).
+- **Tela de onboarding** — primeiro uso do app; feature de produto (Fase 3+).
+- **Reforço da identidade visual** — Igor considera a identidade atual "fraca" e vai revisá-la depois. A UI da Fase 2 é assumidamente descartável, então isso casa com a fase de design de produto (Fase 3+), não com o protótipo.
+
+---
+
+*Próximo passo: **Fase 3** — início do backend real (Python + FastAPI + SQLAlchemy, API REST) respeitando o contrato de API já definido na Fase 1. A definir com Igor o ponto de partida (segmentado por camada, como de praxe).*
